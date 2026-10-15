@@ -490,3 +490,9 @@ $RECYCLE.BIN/
 *.db
 *.db-shm
 *.db-wal
+
+# Build Vercel
+.dotnet/
+out/
+dotnet-install.sh
+.vercel
