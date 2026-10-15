@@ -306,9 +306,6 @@
     {
         MetodoPagamento.Contanti => "bi-cash",
         MetodoPagamento.Bonifico => "bi-bank",
-        MetodoPagamento.Carta or MetodoPagamento.Pos => "bi-credit-card",
-        MetodoPagamento.Satispay => "bi-phone",
-        _ => "bi-wallet2",
     };
 
     protected override async Task OnInitializedAsync()
