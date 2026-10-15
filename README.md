@@ -37,7 +37,6 @@ dotnet run --project src/StudiorumLoci.Api --launch-profile http
 ```
 
 - Documentazione interattiva: http://localhost:5078/scalar
-- In sviluppo il database SQLite (`studiorumloci.db`) viene creato/aggiornato all'avvio.
 - Esempi di chiamate pronti: [src/StudiorumLoci.Api/StudiorumLoci.Api.http](src/StudiorumLoci.Api/StudiorumLoci.Api.http)
 
 Nuova migrazione dopo aver modificato le entità:
@@ -48,14 +47,31 @@ dotnet ef migrations add NomeMigrazione -p src/StudiorumLoci.Api -s src/Studioru
 
 ## Configurazione
 
+Database: PostgreSQL su **Supabase**, tabelle nello schema `gestionale` (non esposto dalla Data API di Supabase).
+
 `appsettings.json`:
-- `ConnectionStrings:Gestionale` – stringa di connessione al database
+- `ConnectionStrings:Gestionale` – stringa di connessione **senza password** (formato `Host=...;Username=...` oppure URI `postgresql://...`)
 - `Cors:Origini` – domini autorizzati a chiamare l'API dal browser (il sito Vercel)
+
+La password **non va mai committata**:
+
+```bash
+# sviluppo
+dotnet user-secrets set "Database:Password" "<password>" --project src/StudiorumLoci.Api
+# produzione: variabile d'ambiente
+Database__Password=<password>
+```
+
+In sviluppo le migrazioni vengono applicate all'avvio; in alternativa:
+
+```bash
+dotnet ef database update -p src/StudiorumLoci.Api -s src/StudiorumLoci.Api
+```
 
 ## Da fare
 
 - [ ] Autenticazione dello staff (es. ASP.NET Core Identity) e `[Authorize]` su tutti i controller tranne `PubblicoController`
-- [ ] Database di produzione (es. PostgreSQL) e hosting dell'API (Vercel non esegue .NET: Azure App Service, Render, Railway, Fly.io…)
+- [ ] Hosting dell'API (Vercel non esegue .NET: Azure App Service, Render, Railway, Fly.io…)
 - [ ] Iscrizioni a corsi/fasce orarie e presenze degli studenti
 - [ ] Generazione automatica delle rette mensili e ricevute
 - [ ] Interfaccia per lo staff (Blazor o pagina riservata sul sito)

@@ -75,7 +75,7 @@ public class GenitoriController(AppDbContext db) : ControllerBase
             GenitoreId = id,
             Tipo = input.Tipo,
             Descrizione = input.Descrizione,
-            Data = input.Data ?? DateTime.UtcNow,
+            Data = input.Data?.ToUniversalTime() ?? DateTime.UtcNow,
         };
         db.Interazioni.Add(interazione);
         await db.SaveChangesAsync();

@@ -92,7 +92,7 @@ public class LeadController(AppDbContext db) : ControllerBase
             LeadId = id,
             Tipo = input.Tipo,
             Descrizione = input.Descrizione,
-            Data = input.Data ?? DateTime.UtcNow,
+            Data = input.Data?.ToUniversalTime() ?? DateTime.UtcNow,
         };
         db.Interazioni.Add(interazione);
         if (lead.Stato == StatoLead.Nuovo) lead.Stato = StatoLead.Contattato;

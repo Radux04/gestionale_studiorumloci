@@ -7,8 +7,12 @@ using StudiorumLoci.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlite(builder.Configuration.GetConnectionString("Gestionale")));
+// La password del DB non sta in appsettings: arriva da user-secrets (sviluppo)
+// o dalla variabile d'ambiente Database__Password (produzione).
+var connessioneDb = ConnessioneDb.Costruisci(
+    builder.Configuration.GetConnectionString("Gestionale"),
+    builder.Configuration["Database:Password"]);
+builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connessioneDb));
 
 builder.Services.AddSingleton(TimeProvider.System);
 

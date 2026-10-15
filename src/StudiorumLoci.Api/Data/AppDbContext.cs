@@ -23,6 +23,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        // Schema dedicato: Supabase espone via Data API solo "public", così i dati
+        // del gestionale restano raggiungibili esclusivamente tramite questa API.
+        b.HasDefaultSchema("gestionale");
+
         b.Entity<Studente>(e =>
         {
             e.Property(x => x.Nome).HasMaxLength(100);
@@ -57,7 +61,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.CompensoOrario).HasPrecision(10, 2);
         });
 
-        b.Entity<Turno>(e => e.Ignore(x => x.Ore));
+        b.Entity<Turno>(e =>
+        {
+            e.Ignore(x => x.Ore);
+            // Orari "da calendario" (ora locale), non istanti UTC.
+            e.Property(x => x.Inizio).HasColumnType("timestamp without time zone");
+            e.Property(x => x.Fine).HasColumnType("timestamp without time zone");
+        });
 
         b.Entity<Pagamento>(e =>
         {
