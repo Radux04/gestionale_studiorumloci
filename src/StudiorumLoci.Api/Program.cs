@@ -22,10 +22,11 @@ builder.Services.AddControllers()
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
-// Il sito pubblico (Vercel) chiama l'API dal browser: va autorizzato via CORS.
+// Sito pubblico e gestionale (Vercel) chiamano l'API dal browser: vanno autorizzati via CORS.
 const string CorsSito = "Sito";
+var originiConsentite = new OriginiConsentite(builder.Configuration.GetSection("Cors:Origini").Get<string[]>() ?? []);
 builder.Services.AddCors(o => o.AddPolicy(CorsSito, p => p
-    .WithOrigins(builder.Configuration.GetSection("Cors:Origini").Get<string[]>() ?? [])
+    .SetIsOriginAllowed(originiConsentite.Consente)
     .AllowAnyHeader()
     .AllowAnyMethod()));
 
@@ -65,9 +66,10 @@ else
     app.UseForwardedHeaders();
 }
 
+// CORS prima della gestione errori: anche le risposte di errore devono arrivare al browser.
+app.UseCors(CorsSito);
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
-app.UseCors(CorsSito);
 app.UseRateLimiter();
 app.UseAuthorization();
 

@@ -93,7 +93,8 @@ public class ApiClient(HttpClient http)
         }
         catch (HttpRequestException)
         {
-            throw new ApiException("Impossibile contattare il server. Verifica che l'API sia avviata.");
+            throw new ApiException($"Impossibile contattare il server ({http.BaseAddress}). " +
+                "Verifica che l'API sia avviata e che questo indirizzo sia tra le origini CORS consentite.");
         }
 
         if (!response.IsSuccessStatusCode)
