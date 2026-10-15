@@ -49,6 +49,13 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
             Scadenza = input.Scadenza,
             Note = input.Note,
         };
+        // Con il metodo indicato il pagamento nasce già incassato (es. contanti ricevuti allo sportello).
+        if (input.Metodo is { } metodo)
+        {
+            pagamento.Stato = StatoPagamento.Pagato;
+            pagamento.Metodo = metodo;
+            pagamento.DataPagamento = input.DataPagamento ?? Oggi;
+        }
         db.Pagamenti.Add(pagamento);
         await db.SaveChangesAsync();
         await db.Entry(pagamento).Reference(p => p.Studente).LoadAsync();

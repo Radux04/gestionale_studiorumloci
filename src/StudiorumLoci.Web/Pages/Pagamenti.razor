@@ -6,7 +6,7 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h1 class="mb-0">Pagamenti</h1>
-    <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuova quota</button>
+    <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo pagamento</button>
 </div>
 
 <Avvisi Errore="@(modulo is null && daIncassare is null ? Errore : null)" Conferma="@Conferma" />
@@ -68,13 +68,18 @@
                     <td class="text-nowrap">
                         @if (p.Stato == StatoPagamento.Pagato && p.Metodo is { } metodo)
                         {
-                            <i class="bi @IconaMetodo(metodo)" title="@Testo.Di(metodo)"></i>
+                            <i class="bi @IconaMetodo(metodo) me-1" title="@Testo.Di(metodo)"></i>
                             @Testo.Di(metodo)
                             <span class="text-body-secondary">· @Testo.Data(p.DataPagamento)</span>
                         }
                         @if (p.Ricevuta is { } r)
                         {
                             <ApriRicevuta PagamentoId="p.Id" Ricevuta="r" Classe="ms-1 align-baseline" />
+                        }
+                        else if (p.Stato == StatoPagamento.Pagato && p.Metodo == MetodoPagamento.Bonifico)
+                        {
+                            <button type="button" class="btn btn-link p-0 ms-1 align-baseline text-warning" title="Ricevuta del bonifico non allegata: clicca per aggiungerla"
+                                    @onclick="() => ApriModifica(p)"><i class="bi bi-exclamation-circle"></i></button>
                         }
                     </td>
                     <td class="text-end text-nowrap">
@@ -113,7 +118,7 @@
     </table>
 </div>
 
-<Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuova quota" : "Modifica quota")" OnChiudi="() => modulo = null">
+<Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuovo pagamento" : "Modifica pagamento")" OnChiudi="() => modulo = null">
     @if (modulo is not null)
     {
         <Avvisi Errore="@Errore" />
@@ -146,6 +151,54 @@
                     <InputDate class="form-control" @bind-Value="modulo.Scadenza" />
                 </div>
             </div>
+            @if (idInModifica is null)
+            {
+                <fieldset class="border rounded p-3 mb-3 bg-body-tertiary">
+                    <legend class="float-none w-auto px-2 fs-6 mb-0">Pagamento</legend>
+                    <div class="btn-group w-100 mb-3" role="group" aria-label="Stato del pagamento">
+                        <input type="radio" class="btn-check" name="statoNuovo" id="daIncassare" checked="@(!incassatoSubito)" @onchange="() => ImpostaIncassato(false)" />
+                        <label class="btn btn-outline-secondary" for="daIncassare"><i class="bi bi-hourglass"></i> Da incassare</label>
+                        <input type="radio" class="btn-check" name="statoNuovo" id="giaIncassato" checked="@incassatoSubito" @onchange="() => ImpostaIncassato(true)" />
+                        <label class="btn btn-outline-success" for="giaIncassato"><i class="bi bi-check-lg"></i> Già incassato</label>
+                    </div>
+                    @if (incassatoSubito)
+                    {
+                        <label class="form-label">Come ha pagato?</label>
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            @foreach (var m in Enum.GetValues<MetodoPagamento>())
+                            {
+                                var principale = m is MetodoPagamento.Contanti or MetodoPagamento.Bonifico;
+                                <input type="radio" class="btn-check" name="metodoNuovo" id="metodo@(m)" checked="@(modulo.Metodo == m)" @onchange="() => modulo.Metodo = m" />
+                                <label class="btn @(principale ? "btn-outline-primary" : "btn-outline-secondary btn-sm align-self-center")" for="metodo@(m)">
+                                    @if (principale) { <i class="bi @IconaMetodo(m) me-1"></i> }
+                                    @Testo.Di(m)
+                                </label>
+                            }
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Data incasso</label>
+                            <InputDate class="form-control" @bind-Value="modulo.DataPagamento" />
+                        </div>
+                        @if (modulo.Metodo == MetodoPagamento.Bonifico)
+                        {
+                            <div class="mt-3">
+                                <label class="form-label">Ricevuta del bonifico <span class="text-body-secondary">(facoltativa)</span></label>
+                                <InputFile class="form-control" accept="@Ricevute.Accept" OnChange="e => ricevutaNuova = e.File" />
+                                <div class="form-text">
+                                    @if (ricevutaNuova is null)
+                                    {
+                                        <span><i class="bi bi-info-circle"></i> Foto (JPG, PNG, HEIC) o PDF, massimo 10 MB. Puoi allegarla anche dopo, da «Modifica».</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success"><i class="bi bi-check-circle"></i> @ricevutaNuova.Name (@Testo.Dimensione(ricevutaNuova.Size))</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </fieldset>
+            }
             @if (inModifica?.Stato == StatoPagamento.Pagato)
             {
                 <div class="row g-2 mb-3">
@@ -245,6 +298,10 @@
     private RegistraIncassoInput incasso = new();
     private IBrowserFile? ricevutaScelta;
 
+    // Nuovo pagamento già incassato
+    private bool incassatoSubito;
+    private IBrowserFile? ricevutaNuova;
+
     private static string IconaMetodo(MetodoPagamento m) => m switch
     {
         MetodoPagamento.Contanti => "bi-cash",
@@ -306,7 +363,19 @@
     {
         idInModifica = null;
         inModifica = null;
+        Errore = null;
+        incassatoSubito = false;
+        ricevutaNuova = null;
         modulo = new PagamentoInput { StudenteId = filtroStudente ?? 0 };
+    }
+
+    /// <summary>"Già incassato" propone contanti e la data di oggi; "da incassare" li azzera.</summary>
+    private void ImpostaIncassato(bool incassato)
+    {
+        incassatoSubito = incassato;
+        modulo!.Metodo = incassato ? MetodoPagamento.Contanti : null;
+        modulo.DataPagamento = incassato ? DateOnly.FromDateTime(DateTime.Today) : null;
+        if (!incassato) ricevutaNuova = null;
     }
 
     private void ApriModifica(PagamentoDto p)
@@ -326,12 +395,29 @@
 
     private async Task Salva()
     {
-        if (await Esegui(() => idInModifica is { } id ? Api.ModificaPagamento(id, modulo!) : Api.CreaPagamento(modulo!)))
+        PagamentoDto? salvato = null;
+        if (!await Esegui(async () =>
+            salvato = idInModifica is { } id ? await Api.ModificaPagamento(id, modulo!) : await Api.CreaPagamento(modulo!)))
+            return;
+
+        // Il pagamento è salvato: un errore sulla ricevuta non lo annulla, lo segnalo e basta.
+        string? erroreRicevuta = null;
+        if (idInModifica is null && salvato!.Metodo == MetodoPagamento.Bonifico && ricevutaNuova is not null)
         {
-            modulo = null;
-            await Carica();
-            Conferma = "Quota salvata.";
+            try { await Api.CaricaRicevuta(salvato.Id, ricevutaNuova); }
+            catch (ApiException ex) { erroreRicevuta = ex.Message; }
         }
+
+        var bonificoSenzaRicevuta = idInModifica is null && salvato!.Metodo == MetodoPagamento.Bonifico && ricevutaNuova is null;
+        modulo = null;
+        ricevutaNuova = null;
+        await Carica();
+        Conferma = salvato!.Stato == StatoPagamento.Pagato
+            ? $"Pagamento di {Testo.Euro(salvato.Importo)} registrato ({Testo.Di(salvato.Metodo!.Value)})." +
+              (bonificoSenzaRicevuta ? " Ricorda di allegare la ricevuta del bonifico." : "")
+            : "Pagamento salvato.";
+        if (erroreRicevuta is not null)
+            Errore = $"La ricevuta non è stata caricata: {erroreRicevuta} Puoi riprovare da «Modifica».";
     }
 
     private void ApriIncasso(PagamentoDto p)

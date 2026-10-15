@@ -18,7 +18,10 @@ public class PagamentoInput
     public DateOnly Scadenza { get; set; } = DateOnly.FromDateTime(DateTime.Today);
     public string? Note { get; set; }
 
-    /// <summary>Considerati solo per i pagamenti già incassati (correzione di metodo/data).</summary>
+    /// <summary>
+    /// In creazione: se valorizzato, il pagamento nasce già incassato con questo metodo.
+    /// In modifica: considerati solo per i pagamenti già incassati (correzione di metodo/data).
+    /// </summary>
     public MetodoPagamento? Metodo { get; set; }
     public DateOnly? DataPagamento { get; set; }
 
