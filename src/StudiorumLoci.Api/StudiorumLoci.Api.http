@@ -1,0 +1,52 @@
+@host = http://localhost:5078
+
+### Form contatti dal sito → lead
+POST {{host}}/api/pubblico/contatti
+Content-Type: application/json
+
+{ "nome": "Maria Rossi", "email": "maria@example.com", "messaggio": "Info doposcuola per mio figlio (2ª media)" }
+
+### Lead
+GET {{host}}/api/crm/lead?stato=Nuovo
+
+### Nuovo genitore
+POST {{host}}/api/crm/genitori
+Content-Type: application/json
+
+{ "nome": "Maria", "cognome": "Rossi", "email": "maria@example.com", "telefono": "3331234567" }
+
+### Nuovo studente collegato al genitore 1
+POST {{host}}/api/crm/studenti
+Content-Type: application/json
+
+{ "nome": "Luca", "cognome": "Rossi", "scuola": "IC Manzoni", "classe": "2B", "genitoriIds": [1] }
+
+### Nuovo dipendente
+POST {{host}}/api/dipendenti
+Content-Type: application/json
+
+{ "nome": "Giulia", "cognome": "Bianchi", "ruolo": "Tutor", "contratto": "Collaborazione", "dataAssunzione": "2026-09-01", "compensoOrario": 15, "materie": "Matematica, Scienze" }
+
+### Turno
+POST {{host}}/api/dipendenti/1/turni
+Content-Type: application/json
+
+{ "inizio": "2026-10-15T14:30:00", "fine": "2026-10-15T18:30:00" }
+
+### Compenso del mese
+GET {{host}}/api/dipendenti/1/compenso?da=2026-10-01&a=2026-10-31
+
+### Retta di ottobre
+POST {{host}}/api/pagamenti
+Content-Type: application/json
+
+{ "studenteId": 1, "causale": "Retta ottobre 2026", "importo": 180, "scadenza": "2026-10-10" }
+
+### Incasso
+POST {{host}}/api/pagamenti/1/incasso
+Content-Type: application/json
+
+{ "metodo": "Bonifico" }
+
+### Riepilogo mensile
+GET {{host}}/api/pagamenti/riepilogo?anno=2026&mese=10
