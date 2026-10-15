@@ -13,9 +13,9 @@ public static class Mapping
         s.Id, s.Nome, s.Cognome, s.DataNascita, s.Scuola, s.Classe, s.Note, s.Attivo,
         s.Genitori.Select(g => g.Id).ToArray(), s.SedeId, s.Sede?.Nome);
 
-    public static SedeDto ToDto(this Sede s, int numeroStudenti) => new(
+    public static SedeDto ToDto(this Sede s, int numeroStudenti, int numeroDipendenti) => new(
         s.Id, s.Nome, s.Indirizzo, s.Cap, s.Comune, s.Provincia, s.Regione,
-        s.Telefono, s.Email, s.Note, s.Attiva, numeroStudenti);
+        s.Telefono, s.Email, s.Note, s.Attiva, numeroStudenti, numeroDipendenti);
 
     public static GenitoreDto ToDto(this Genitore g) => new(
         g.Id, g.Nome, g.Cognome, g.Email, g.Telefono, g.CodiceFiscale, g.Indirizzo, g.Note,
@@ -29,7 +29,8 @@ public static class Mapping
 
     public static DipendenteDto ToDto(this Dipendente d) => new(
         d.Id, d.Nome, d.Cognome, d.Email, d.Telefono, d.CodiceFiscale, d.Ruolo, d.Contratto,
-        d.DataAssunzione, d.DataCessazione, d.CompensoOrario, d.Materie, d.Attivo);
+        d.DataAssunzione, d.DataCessazione, d.CompensoOrario, d.Materie, d.Attivo,
+        d.Sedi.Select(s => s.Id).ToArray());
 
     public static TurnoDto ToDto(this Turno t) => new(t.Id, t.DipendenteId, t.Inizio, t.Fine, t.Ore, t.Note);
 

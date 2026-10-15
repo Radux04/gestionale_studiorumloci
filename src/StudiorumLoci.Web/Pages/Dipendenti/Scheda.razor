@@ -40,6 +40,14 @@
                         <dt>Materie</dt><dd>@(dipendente.Materie ?? "—")</dd>
                         <dt>Contatti</dt><dd>@(dipendente.Email ?? "—")<br />@dipendente.Telefono</dd>
                         <dt>Codice fiscale</dt><dd>@(dipendente.CodiceFiscale ?? "—")</dd>
+                        <dt>Sedi</dt>
+                        <dd>
+                            @if (dipendente.SediIds.Length == 0) { <span class="text-body-secondary">Nessuna sede assegnata</span> }
+                            @foreach (var s in sedi.Where(s => dipendente.SediIds.Contains(s.Id)))
+                            {
+                                <div><i class="bi bi-geo-alt"></i> @s.Nome <span class="text-body-secondary small">@s.Localita</span></div>
+                            }
+                        </dd>
                         <dt>In servizio</dt>
                         <dd class="mb-0">dal @Testo.Data(dipendente.DataAssunzione)@(dipendente.DataCessazione is { } c ? $" al {Testo.Data(c)}" : "")</dd>
                     </dl>
@@ -115,7 +123,8 @@
 <Finestra Visibile="modulo is not null" Titolo="Modifica dipendente" Grande OnChiudi="() => modulo = null">
     @if (modulo is not null)
     {
-        <ModuloDipendente Modello="modulo" Disabilitato="Caricamento" OnSalva="Salva" />
+        <Avvisi Errore="@Errore" />
+        <ModuloDipendente Modello="modulo" Sedi="sedi" Disabilitato="Caricamento" OnSalva="Salva" />
     }
 </Finestra>
 
@@ -148,6 +157,7 @@
     [Inject] private NavigationManager Navigazione { get; set; } = null!;
 
     private DipendenteDto? dipendente;
+    private List<SedeDto> sedi = [];
     private DipendenteInput? modulo;
     private DateOnly mese = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private List<TurnoDto> turni = [];
@@ -160,7 +170,11 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        await Esegui(async () => dipendente = await Api.Dipendente(Id));
+        await Esegui(async () =>
+        {
+            dipendente = await Api.Dipendente(Id);
+            sedi = await Api.Sedi();
+        });
         await CaricaTurni();
     }
 

@@ -61,8 +61,9 @@ public class ApiClient(HttpClient http)
     public Task EliminaInterazione(int id) => Send(HttpMethod.Delete, $"api/crm/interazioni/{id}");
 
     // ---- Dipendenti ----
-    public Task<List<DipendenteDto>> Dipendenti(RuoloDipendente? ruolo = null, bool soloAttivi = true) =>
-        Get<List<DipendenteDto>>($"api/dipendenti?soloAttivi={soloAttivi}&ruolo={ruolo}");
+    /// <param name="sedeId">0 = solo dipendenti senza sede.</param>
+    public Task<List<DipendenteDto>> Dipendenti(RuoloDipendente? ruolo = null, bool soloAttivi = true, int? sedeId = null) =>
+        Get<List<DipendenteDto>>($"api/dipendenti?soloAttivi={soloAttivi}&ruolo={ruolo}&sedeId={sedeId}");
     public Task<DipendenteDto> Dipendente(int id) => Get<DipendenteDto>($"api/dipendenti/{id}");
     public Task<DipendenteDto> CreaDipendente(DipendenteInput d) => Send<DipendenteDto>(HttpMethod.Post, "api/dipendenti", d);
     public Task<DipendenteDto> ModificaDipendente(int id, DipendenteInput d) => Send<DipendenteDto>(HttpMethod.Put, $"api/dipendenti/{id}", d);
@@ -76,8 +77,9 @@ public class ApiClient(HttpClient http)
     public Task<CompensoDto> Compenso(int id, DateOnly da, DateOnly a) => Get<CompensoDto>($"api/dipendenti/{id}/compenso?{Periodo(da, a)}");
 
     // ---- Pagamenti ----
-    public Task<List<PagamentoDto>> Pagamenti(int? studenteId = null, StatoPagamento? stato = null, bool soloScaduti = false) =>
-        Get<List<PagamentoDto>>($"api/pagamenti?studenteId={studenteId}&stato={stato}&soloScaduti={soloScaduti}");
+    /// <param name="sedeId">Sede dello studente; 0 = studenti senza sede.</param>
+    public Task<List<PagamentoDto>> Pagamenti(int? studenteId = null, StatoPagamento? stato = null, bool soloScaduti = false, int? sedeId = null) =>
+        Get<List<PagamentoDto>>($"api/pagamenti?studenteId={studenteId}&stato={stato}&soloScaduti={soloScaduti}&sedeId={sedeId}");
     public Task<PagamentoDto> CreaPagamento(PagamentoInput p) => Send<PagamentoDto>(HttpMethod.Post, "api/pagamenti", p);
     public Task<PagamentoDto> ModificaPagamento(int id, PagamentoInput p) => Send<PagamentoDto>(HttpMethod.Put, $"api/pagamenti/{id}", p);
     public Task<PagamentoDto> RegistraIncasso(int id, RegistraIncassoInput i) => Send<PagamentoDto>(HttpMethod.Post, $"api/pagamenti/{id}/incasso", i);
@@ -102,7 +104,8 @@ public class ApiClient(HttpClient http)
     public Task<PagamentoDto> EliminaRicevuta(int id) => Send<PagamentoDto>(HttpMethod.Delete, $"api/pagamenti/{id}/ricevuta");
     /// <summary>Indirizzo diretto della ricevuta, da aprire in una nuova scheda.</summary>
     public string UrlRicevuta(int id) => new Uri(http.BaseAddress!, $"api/pagamenti/{id}/ricevuta").ToString();
-    public Task<RiepilogoPagamentiDto> Riepilogo(int anno, int mese) => Get<RiepilogoPagamentiDto>($"api/pagamenti/riepilogo?anno={anno}&mese={mese}");
+    public Task<RiepilogoPagamentiDto> Riepilogo(int anno, int mese, int? sedeId = null) =>
+        Get<RiepilogoPagamentiDto>($"api/pagamenti/riepilogo?anno={anno}&mese={mese}&sedeId={sedeId}");
 
     // ---- Infrastruttura ----
 

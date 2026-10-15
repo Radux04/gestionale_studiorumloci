@@ -1,4 +1,5 @@
 ﻿using StudiorumLoci.Api.Domain.Common;
+using StudiorumLoci.Api.Domain.Sedi;
 
 namespace StudiorumLoci.Api.Domain.Dipendenti;
 
@@ -20,4 +21,7 @@ public class Dipendente : Entity
     public bool Attivo { get; set; } = true;
 
     public List<Turno> Turni { get; set; } = [];
+
+    /// <summary>Sedi in cui lavora (anche più d'una).</summary>
+    public List<Sede> Sedi { get; set; } = [];
 }

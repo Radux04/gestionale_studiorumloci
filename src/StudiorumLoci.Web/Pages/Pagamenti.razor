@@ -8,13 +8,22 @@
     <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuova quota</button>
 </div>
 
-<Avvisi Errore="@Errore" Conferma="@Conferma" />
+<Avvisi Errore="@(modulo is null && daIncassare is null ? Errore : null)" Conferma="@Conferma" />
+
+<div class="row g-2 mb-3">
+    <div class="col-sm-6 col-lg-4">
+        <SelezioneSede Sedi="sedi" Valore="filtroSede" ValoreChanged="CambiaSede" />
+    </div>
+</div>
 
 @if (riepilogo is not null)
 {
     <div class="card mb-3">
         <div class="card-body d-flex flex-wrap align-items-center gap-4">
-            <input type="month" class="form-control w-auto" value="@meseRiepilogo.ToString("yyyy-MM")" @onchange="CambiaMeseRiepilogo" />
+            <div>
+                <input type="month" class="form-control w-auto" value="@meseRiepilogo.ToString("yyyy-MM")" @onchange="CambiaMeseRiepilogo" />
+                <div class="small text-body-secondary mt-1">@NomeFiltroSede</div>
+            </div>
             <div><div class="small text-body-secondary">Atteso</div><div class="fs-5 fw-semibold">@Testo.Euro(riepilogo.Atteso)</div></div>
             <div><div class="small text-body-secondary">Incassato</div><div class="fs-5 fw-semibold text-success">@Testo.Euro(riepilogo.Incassato)</div></div>
             <div><div class="small text-body-secondary">Da incassare</div><div class="fs-5 fw-semibold">@Testo.Euro(riepilogo.DaIncassare)</div></div>
@@ -27,7 +36,7 @@
     <div class="col-sm-4 col-lg-3">
         <select class="form-select" value="@(filtroStudente?.ToString() ?? "")" @onchange="CambiaStudente">
             <option value="">Tutti gli studenti</option>
-            @foreach (var s in studenti) { <option value="@s.Id">@s.NomeCompleto</option> }
+            @foreach (var s in StudentiDellaSede) { <option value="@s.Id">@s.NomeCompleto</option> }
         </select>
     </div>
     <div class="col-sm-4 col-lg-3">
@@ -113,7 +122,7 @@
                 <label class="form-label">Studente</label>
                 <InputSelect class="form-select" @bind-Value="modulo.StudenteId">
                     <option value="0">— seleziona —</option>
-                    @foreach (var s in studenti.Where(s => s.Attivo || s.Id == modulo.StudenteId))
+                    @foreach (var s in StudentiDellaSede.Where(s => s.Attivo || s.Id == modulo.StudenteId))
                     {
                         <option value="@s.Id">@s.NomeCompleto</option>
                     }
@@ -201,6 +210,22 @@
 @code {
     [SupplyParameterFromQuery] public int? StudenteId { get; set; }
     [SupplyParameterFromQuery] public bool? Scaduti { get; set; }
+    [SupplyParameterFromQuery] public int? SedeId { get; set; }
+
+    private List<SedeDto> sedi = [];
+    private int? filtroSede;
+
+    /// <summary>Studenti della sede filtrata (tutti se nessun filtro), più quello del pagamento in modifica.</summary>
+    private IEnumerable<StudenteDto> StudentiDellaSede => filtroSede is null
+        ? studenti
+        : studenti.Where(s => s.SedeId == (filtroSede == 0 ? null : filtroSede) || s.Id == modulo?.StudenteId);
+
+    private string NomeFiltroSede => filtroSede switch
+    {
+        null => "Tutte le sedi",
+        0 => "Studenti senza sede",
+        var id => sedi.FirstOrDefault(s => s.Id == id)?.Nome ?? "",
+    };
 
     private List<PagamentoDto> pagamenti = [];
     private List<StudenteDto> studenti = [];
@@ -231,19 +256,32 @@
     protected override async Task OnInitializedAsync()
     {
         filtroStudente = StudenteId;
+        filtroSede = SedeId;
         soloScaduti = Scaduti ?? false;
-        await Esegui(async () => studenti = await Api.Studenti(soloAttivi: false));
+        await Esegui(async () =>
+        {
+            studenti = await Api.Studenti(soloAttivi: false);
+            sedi = await Api.Sedi();
+        });
         await Carica();
     }
 
     private async Task Carica()
     {
-        await Esegui(async () => pagamenti = await Api.Pagamenti(filtroStudente, filtroStato, soloScaduti));
+        await Esegui(async () => pagamenti = await Api.Pagamenti(filtroStudente, filtroStato, soloScaduti, filtroSede));
         await CaricaRiepilogo();
     }
 
     private Task CaricaRiepilogo() =>
-        Esegui(async () => riepilogo = await Api.Riepilogo(meseRiepilogo.Year, meseRiepilogo.Month));
+        Esegui(async () => riepilogo = await Api.Riepilogo(meseRiepilogo.Year, meseRiepilogo.Month, filtroSede));
+
+    private Task CambiaSede(int? sedeId)
+    {
+        filtroSede = sedeId;
+        // Lo studente filtrato potrebbe non appartenere alla nuova sede.
+        if (filtroStudente is { } id && StudentiDellaSede.All(s => s.Id != id)) filtroStudente = null;
+        return Carica();
+    }
 
     private Task CambiaMeseRiepilogo(ChangeEventArgs e)
     {

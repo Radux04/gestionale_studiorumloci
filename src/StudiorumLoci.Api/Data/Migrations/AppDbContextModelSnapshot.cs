@@ -23,6 +23,21 @@ namespace StudiorumLoci.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("DipendenteSede", b =>
+                {
+                    b.Property<int>("DipendentiId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SediId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("DipendentiId", "SediId");
+
+                    b.HasIndex("SediId");
+
+                    b.ToTable("DipendenteSede", "gestionale");
+                });
+
             modelBuilder.Entity("StudenteGenitore", b =>
                 {
                     b.Property<int>("GenitoriId")
@@ -443,6 +458,21 @@ namespace StudiorumLoci.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Sedi", "gestionale");
+                });
+
+            modelBuilder.Entity("DipendenteSede", b =>
+                {
+                    b.HasOne("StudiorumLoci.Api.Domain.Dipendenti.Dipendente", null)
+                        .WithMany()
+                        .HasForeignKey("DipendentiId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudiorumLoci.Api.Domain.Sedi.Sede", null)
+                        .WithMany()
+                        .HasForeignKey("SediId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("StudenteGenitore", b =>

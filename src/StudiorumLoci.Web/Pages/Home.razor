@@ -1,9 +1,18 @@
 ﻿@page "/"
 @inherits PaginaBase
+@inject NavigationManager Navigazione
 
 <PageTitle>Panoramica · Studiorum Loci</PageTitle>
 
-<h1 class="mb-4">Panoramica</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="mb-0">Panoramica</h1>
+    @if (sedi.Count > 0)
+    {
+        <div style="min-width: 16rem">
+            <SelezioneSede Sedi="sedi" Valore="SedeId" ValoreChanged="CambiaSede" MostraSenzaSede="false" />
+        </div>
+    }
+</div>
 
 <Avvisi Errore="@Errore" />
 
@@ -11,13 +20,13 @@
     <div class="col-sm-6 col-xl-3">
         <a href="crm/lead" class="card text-decoration-none h-100">
             <div class="card-body">
-                <div class="text-body-secondary small">Nuove richieste</div>
+                <div class="text-body-secondary small">Nuove richieste <span class="text-body-tertiary">(tutte le sedi)</span></div>
                 <div class="fs-2 fw-semibold">@leadNuovi.Count</div>
             </div>
         </a>
     </div>
     <div class="col-sm-6 col-xl-3">
-        <a href="crm/studenti" class="card text-decoration-none h-100">
+        <a href="@ConSede("crm/studenti")" class="card text-decoration-none h-100">
             <div class="card-body">
                 <div class="text-body-secondary small">Studenti attivi</div>
                 <div class="fs-2 fw-semibold">@studentiAttivi</div>
@@ -25,7 +34,7 @@
         </a>
     </div>
     <div class="col-sm-6 col-xl-3">
-        <a href="dipendenti" class="card text-decoration-none h-100">
+        <a href="@ConSede("dipendenti")" class="card text-decoration-none h-100">
             <div class="card-body">
                 <div class="text-body-secondary small">Dipendenti attivi</div>
                 <div class="fs-2 fw-semibold">@dipendentiAttivi</div>
@@ -33,7 +42,7 @@
         </a>
     </div>
     <div class="col-sm-6 col-xl-3">
-        <a href="pagamenti?scaduti=true" class="card text-decoration-none h-100 @(scaduti.Count > 0 ? "border-danger" : "")">
+        <a href="@ConSede("pagamenti?scaduti=true")" class="card text-decoration-none h-100 @(scaduti.Count > 0 ? "border-danger" : "")">
             <div class="card-body">
                 <div class="text-body-secondary small">Rette scadute</div>
                 <div class="fs-2 fw-semibold @(scaduti.Count > 0 ? "text-danger" : "")">@scaduti.Count</div>
@@ -49,7 +58,10 @@
 <div class="row g-3">
     <div class="col-lg-5">
         <div class="card h-100">
-            <div class="card-header">Incassi di @oggi.ToString("MMMM yyyy")</div>
+            <div class="card-header d-flex justify-content-between">
+                <span>Incassi di @oggi.ToString("MMMM yyyy")</span>
+                <a href="@ConSede("pagamenti")">Dettaglio</a>
+            </div>
             <div class="card-body">
                 @if (riepilogo is not null)
                 {
@@ -90,20 +102,28 @@
 </div>
 
 @code {
+    /// <summary>Sede selezionata (nell'indirizzo, così la scelta resta anche ricaricando la pagina).</summary>
+    [SupplyParameterFromQuery] public int? SedeId { get; set; }
+
     private readonly DateOnly oggi = DateOnly.FromDateTime(DateTime.Today);
+    private List<SedeDto> sedi = [];
     private List<LeadDto> leadNuovi = [];
     private List<PagamentoDto> scaduti = [];
     private int studentiAttivi;
     private int dipendentiAttivi;
     private RiepilogoPagamentiDto? riepilogo;
 
-    protected override Task OnInitializedAsync() => Esegui(async () =>
+    protected override async Task OnInitializedAsync() =>
+        await Esegui(async () => sedi = await Api.Sedi());
+
+    // Si riesegue a ogni cambio di ?sedeId.
+    protected override Task OnParametersSetAsync() => Esegui(async () =>
     {
         var lead = Api.Lead(StatoLead.Nuovo);
-        var studenti = Api.Studenti();
-        var dipendenti = Api.Dipendenti();
-        var pagamenti = Api.Pagamenti(soloScaduti: true);
-        var mese = Api.Riepilogo(oggi.Year, oggi.Month);
+        var studenti = Api.Studenti(sedeId: SedeId);
+        var dipendenti = Api.Dipendenti(sedeId: SedeId);
+        var pagamenti = Api.Pagamenti(soloScaduti: true, sedeId: SedeId);
+        var mese = Api.Riepilogo(oggi.Year, oggi.Month, SedeId);
 
         leadNuovi = await lead;
         studentiAttivi = (await studenti).Count;
@@ -111,4 +131,11 @@
         scaduti = await pagamenti;
         riepilogo = await mese;
     });
+
+    private void CambiaSede(int? sedeId) =>
+        Navigazione.NavigateTo(Navigazione.GetUriWithQueryParameter("sedeId", sedeId));
+
+    /// <summary>Aggiunge la sede selezionata ai link verso le altre pagine.</summary>
+    private string ConSede(string url) =>
+        SedeId is null ? url : url + (url.Contains('?') ? "&" : "?") + $"sedeId={SedeId}";
 }

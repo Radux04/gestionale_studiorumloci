@@ -19,9 +19,9 @@ public class SediController(AppDbContext db) : ControllerBase
 
         var sedi = await query
             .OrderBy(s => s.Regione).ThenBy(s => s.Comune).ThenBy(s => s.Nome)
-            .Select(s => new { Sede = s, Studenti = s.Studenti.Count(x => x.Attivo) })
+            .Select(s => new { Sede = s, Studenti = s.Studenti.Count(x => x.Attivo), Dipendenti = s.Dipendenti.Count(x => x.Attivo) })
             .ToListAsync();
-        return sedi.Select(x => x.Sede.ToDto(x.Studenti));
+        return sedi.Select(x => x.Sede.ToDto(x.Studenti, x.Dipendenti));
     }
 
     [HttpGet("{id:int}")]
@@ -29,9 +29,9 @@ public class SediController(AppDbContext db) : ControllerBase
     {
         var sede = await db.Sedi.AsNoTracking()
             .Where(s => s.Id == id)
-            .Select(s => new { Sede = s, Studenti = s.Studenti.Count(x => x.Attivo) })
+            .Select(s => new { Sede = s, Studenti = s.Studenti.Count(x => x.Attivo), Dipendenti = s.Dipendenti.Count(x => x.Attivo) })
             .FirstOrDefaultAsync();
-        return sede is null ? NotFound() : sede.Sede.ToDto(sede.Studenti);
+        return sede is null ? NotFound() : sede.Sede.ToDto(sede.Studenti, sede.Dipendenti);
     }
 
     [HttpPost]
@@ -43,7 +43,7 @@ public class SediController(AppDbContext db) : ControllerBase
         Applica(sede, input);
         db.Sedi.Add(sede);
         await db.SaveChangesAsync();
-        return CreatedAtAction(nameof(Dettaglio), new { id = sede.Id }, sede.ToDto(0));
+        return CreatedAtAction(nameof(Dettaglio), new { id = sede.Id }, sede.ToDto(0, 0));
     }
 
     [HttpPut("{id:int}")]
@@ -56,7 +56,9 @@ public class SediController(AppDbContext db) : ControllerBase
 
         Applica(sede, input);
         await db.SaveChangesAsync();
-        return sede.ToDto(await db.Studenti.CountAsync(s => s.SedeId == id && s.Attivo));
+        return sede.ToDto(
+            await db.Studenti.CountAsync(s => s.SedeId == id && s.Attivo),
+            await db.Dipendenti.CountAsync(d => d.Attivo && d.Sedi.Any(s => s.Id == id)));
     }
 
     /// <summary>Elimina la sede. Non consentito se ha studenti assegnati (anche non attivi).</summary>

@@ -28,7 +28,7 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead>
-            <tr><th>Sede</th><th>Indirizzo</th><th>Regione</th><th>Contatti</th><th class="text-end">Studenti attivi</th><th></th></tr>
+            <tr><th>Sede</th><th>Indirizzo</th><th>Regione</th><th>Contatti</th><th class="text-end">Studenti</th><th class="text-end">Dipendenti</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var s in sedi)
@@ -48,6 +48,7 @@
                         @if (s.Email is not null) { <div><i class="bi bi-envelope"></i> @s.Email</div> }
                     </td>
                     <td class="text-end"><a href="crm/studenti?sedeId=@s.Id">@s.NumeroStudenti</a></td>
+                    <td class="text-end"><a href="dipendenti?sedeId=@s.Id">@s.NumeroDipendenti</a></td>
                     <td class="text-end text-nowrap">
                         <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(s)"><i class="bi bi-pencil"></i></button>
                         <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => Elimina(s)" />
@@ -56,7 +57,7 @@
             }
             @if (sedi.Count == 0 && !Caricamento)
             {
-                <tr><td colspan="6" class="text-body-secondary">Nessuna sede. Aggiungi la prima con «Nuova sede».</td></tr>
+                <tr><td colspan="7" class="text-body-secondary">Nessuna sede. Aggiungi la prima con «Nuova sede».</td></tr>
             }
         </tbody>
     </table>

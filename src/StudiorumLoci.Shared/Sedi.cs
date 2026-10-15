@@ -4,7 +4,7 @@ namespace StudiorumLoci.Shared;
 
 public record SedeDto(
     int Id, string Nome, string? Indirizzo, string? Cap, string Comune, string Provincia, string Regione,
-    string? Telefono, string? Email, string? Note, bool Attiva, int NumeroStudenti)
+    string? Telefono, string? Email, string? Note, bool Attiva, int NumeroStudenti, int NumeroDipendenti)
 {
     /// <summary>Es. "Pescara (PE)".</summary>
     public string Localita => $"{Comune} ({Provincia})";

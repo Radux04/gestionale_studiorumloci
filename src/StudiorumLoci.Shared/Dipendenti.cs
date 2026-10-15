@@ -5,7 +5,7 @@ namespace StudiorumLoci.Shared;
 public record DipendenteDto(
     int Id, string Nome, string Cognome, string? Email, string? Telefono, string? CodiceFiscale,
     RuoloDipendente Ruolo, TipoContratto Contratto, DateOnly DataAssunzione, DateOnly? DataCessazione,
-    decimal CompensoOrario, string? Materie, bool Attivo)
+    decimal CompensoOrario, string? Materie, bool Attivo, int[] SediIds)
 {
     public string NomeCompleto => $"{Cognome} {Nome}";
 }
@@ -24,12 +24,13 @@ public class DipendenteInput
     [Range(0, 1000, ErrorMessage = "Compenso non valido")] public decimal CompensoOrario { get; set; }
     public string? Materie { get; set; }
     public bool Attivo { get; set; } = true;
+    public List<int> SediIds { get; set; } = [];
 
     public static DipendenteInput Da(DipendenteDto d) => new()
     {
         Nome = d.Nome, Cognome = d.Cognome, Email = d.Email, Telefono = d.Telefono, CodiceFiscale = d.CodiceFiscale,
         Ruolo = d.Ruolo, Contratto = d.Contratto, DataAssunzione = d.DataAssunzione, DataCessazione = d.DataCessazione,
-        CompensoOrario = d.CompensoOrario, Materie = d.Materie, Attivo = d.Attivo,
+        CompensoOrario = d.CompensoOrario, Materie = d.Materie, Attivo = d.Attivo, SediIds = [.. d.SediIds],
     };
 }
 

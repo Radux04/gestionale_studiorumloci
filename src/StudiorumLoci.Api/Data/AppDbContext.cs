@@ -81,6 +81,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Ruolo).HasConversion<string>();
             e.Property(x => x.Contratto).HasConversion<string>();
             e.Property(x => x.CompensoOrario).HasPrecision(10, 2);
+            // Eliminando una sede o un dipendente si eliminano solo le assegnazioni.
+            e.HasMany(x => x.Sedi).WithMany(x => x.Dipendenti).UsingEntity("DipendenteSede");
         });
 
         b.Entity<Turno>(e =>

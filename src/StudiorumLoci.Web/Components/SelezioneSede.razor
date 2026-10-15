@@ -1,0 +1,23 @@
+@* Filtro per sede: "Tutte le sedi" (null), una sede, oppure "Senza sede" (0). *@
+
+<select class="form-select" value="@(Valore?.ToString() ?? "")" @onchange="Cambia">
+    <option value="">@TestoTutte</option>
+    @foreach (var g in Sedi.GroupBy(s => s.Regione))
+    {
+        <optgroup label="@g.Key">
+            @foreach (var s in g) { <option value="@s.Id">@s.Nome@(s.Attiva ? "" : " (non attiva)")</option> }
+        </optgroup>
+    }
+    @if (MostraSenzaSede) { <option value="0">— Senza sede —</option> }
+</select>
+
+@code {
+    [Parameter, EditorRequired] public List<SedeDto> Sedi { get; set; } = [];
+    [Parameter] public int? Valore { get; set; }
+    [Parameter] public EventCallback<int?> ValoreChanged { get; set; }
+    [Parameter] public string TestoTutte { get; set; } = "Tutte le sedi";
+    [Parameter] public bool MostraSenzaSede { get; set; } = true;
+
+    private Task Cambia(ChangeEventArgs e) =>
+        ValoreChanged.InvokeAsync(int.TryParse(e.Value?.ToString(), out var id) ? id : null);
+}

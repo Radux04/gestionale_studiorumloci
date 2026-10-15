@@ -1,5 +1,6 @@
 using StudiorumLoci.Api.Domain.Common;
 using StudiorumLoci.Api.Domain.Crm;
+using StudiorumLoci.Api.Domain.Dipendenti;
 
 namespace StudiorumLoci.Api.Domain.Sedi;
 
@@ -19,4 +20,5 @@ public class Sede : Entity
     public bool Attiva { get; set; } = true;
 
     public List<Studente> Studenti { get; set; } = [];
+    public List<Dipendente> Dipendenti { get; set; } = [];
 }

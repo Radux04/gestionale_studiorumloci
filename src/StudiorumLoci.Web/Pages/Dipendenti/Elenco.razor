@@ -8,11 +8,14 @@
     <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo dipendente</button>
 </div>
 
-<Avvisi Errore="@Errore" Conferma="@Conferma" />
+<Avvisi Errore="@(modulo is null ? Errore : null)" Conferma="@Conferma" />
 
 <div class="row g-2 align-items-center mb-3">
     <div class="col-sm-4 col-lg-3">
         <SelezioneEnum TEnum="RuoloDipendente" Valore="filtroRuolo" ValoreChanged="CambiaRuolo" TestoTutti="Tutti i ruoli" />
+    </div>
+    <div class="col-sm-4 col-lg-3">
+        <SelezioneSede Sedi="sedi" Valore="filtroSede" ValoreChanged="CambiaSede" />
     </div>
     <div class="col-auto">
         <div class="form-check">
@@ -25,7 +28,7 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead>
-            <tr><th>Dipendente</th><th>Ruolo</th><th>Contratto</th><th>Materie</th><th class="text-end">€/ora</th><th></th></tr>
+            <tr><th>Dipendente</th><th>Ruolo</th><th>Contratto</th><th>Sedi</th><th>Materie</th><th class="text-end">€/ora</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var d in dipendenti)
@@ -37,6 +40,10 @@
                     </td>
                     <td>@Testo.Di(d.Ruolo)</td>
                     <td>@Testo.Di(d.Contratto)</td>
+                    <td>
+                        @if (d.SediIds.Length == 0) { <span class="text-body-secondary">—</span> }
+                        @foreach (var id in d.SediIds) { <span class="badge text-bg-light border me-1">@NomeSede(id)</span> }
+                    </td>
                     <td>@d.Materie</td>
                     <td class="text-end">@Testo.Euro(d.CompensoOrario)</td>
                     <td class="text-end text-nowrap">
@@ -48,7 +55,7 @@
             }
             @if (dipendenti.Count == 0 && !Caricamento)
             {
-                <tr><td colspan="6" class="text-body-secondary">Nessun dipendente trovato.</td></tr>
+                <tr><td colspan="7" class="text-body-secondary">Nessun dipendente trovato.</td></tr>
             }
         </tbody>
     </table>
@@ -58,21 +65,32 @@
     @if (modulo is not null)
     {
         <Avvisi Errore="@Errore" />
-        <ModuloDipendente Modello="modulo" Disabilitato="Caricamento" OnSalva="Salva" />
+        <ModuloDipendente Modello="modulo" Sedi="sedi" Disabilitato="Caricamento" OnSalva="Salva" />
     }
 </Finestra>
 
 @code {
+    [SupplyParameterFromQuery] public int? SedeId { get; set; }
+
     private List<DipendenteDto> dipendenti = [];
+    private List<SedeDto> sedi = [];
     private RuoloDipendente? filtroRuolo;
+    private int? filtroSede;
     private bool soloAttivi = true;
 
     private DipendenteInput? modulo;
     private int? idInModifica;
 
-    protected override Task OnInitializedAsync() => Carica();
+    protected override async Task OnInitializedAsync()
+    {
+        filtroSede = SedeId;
+        await Esegui(async () => sedi = await Api.Sedi());
+        await Carica();
+    }
 
-    private Task Carica() => Esegui(async () => dipendenti = await Api.Dipendenti(filtroRuolo, soloAttivi));
+    private Task Carica() => Esegui(async () => dipendenti = await Api.Dipendenti(filtroRuolo, soloAttivi, filtroSede));
+
+    private string NomeSede(int id) => sedi.FirstOrDefault(s => s.Id == id)?.Nome ?? $"#{id}";
 
     private Task CambiaRuolo(RuoloDipendente? ruolo)
     {
@@ -80,15 +98,24 @@
         return Carica();
     }
 
+    private Task CambiaSede(int? sedeId)
+    {
+        filtroSede = sedeId;
+        return Carica();
+    }
+
     private void ApriNuovo()
     {
         idInModifica = null;
-        modulo = new DipendenteInput();
+        Errore = null;
+        // Se sto guardando una sede, il nuovo dipendente parte già assegnato a quella.
+        modulo = new DipendenteInput { SediIds = filtroSede is > 0 ? [filtroSede.Value] : [] };
     }
 
     private void ApriModifica(DipendenteDto d)
     {
         idInModifica = d.Id;
+        Errore = null;
         modulo = DipendenteInput.Da(d);
     }
 

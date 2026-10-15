@@ -10,12 +10,15 @@ namespace StudiorumLoci.Api.Controllers;
 [Route("api/dipendenti")]
 public class DipendentiController(AppDbContext db) : ControllerBase
 {
+    /// <param name="sedeId">Filtra per sede di lavoro; 0 = dipendenti senza sede assegnata.</param>
     [HttpGet]
-    public async Task<IEnumerable<DipendenteDto>> Elenco(RuoloDipendente? ruolo, bool soloAttivi = true)
+    public async Task<IEnumerable<DipendenteDto>> Elenco(RuoloDipendente? ruolo, int? sedeId, bool soloAttivi = true)
     {
-        var query = db.Dipendenti.AsNoTracking();
+        var query = db.Dipendenti.Include(d => d.Sedi).AsNoTracking();
         if (soloAttivi) query = query.Where(d => d.Attivo);
         if (ruolo is not null) query = query.Where(d => d.Ruolo == ruolo);
+        if (sedeId == 0) query = query.Where(d => !d.Sedi.Any());
+        else if (sedeId is not null) query = query.Where(d => d.Sedi.Any(s => s.Id == sedeId));
 
         return (await query.OrderBy(d => d.Cognome).ThenBy(d => d.Nome).ToListAsync()).Select(d => d.ToDto());
     }
@@ -23,7 +26,7 @@ public class DipendentiController(AppDbContext db) : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<DipendenteDto>> Dettaglio(int id)
     {
-        var dipendente = await db.Dipendenti.FindAsync(id);
+        var dipendente = await db.Dipendenti.Include(d => d.Sedi).AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
         return dipendente is null ? NotFound() : dipendente.ToDto();
     }
 
@@ -31,7 +34,7 @@ public class DipendentiController(AppDbContext db) : ControllerBase
     public async Task<ActionResult<DipendenteDto>> Crea(DipendenteInput input)
     {
         var dipendente = new Dipendente { Nome = input.Nome, Cognome = input.Cognome };
-        Applica(dipendente, input);
+        if (await Applica(dipendente, input) is { } errore) return errore;
         db.Dipendenti.Add(dipendente);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(Dettaglio), new { id = dipendente.Id }, dipendente.ToDto());
@@ -40,10 +43,10 @@ public class DipendentiController(AppDbContext db) : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult<DipendenteDto>> Modifica(int id, DipendenteInput input)
     {
-        var dipendente = await db.Dipendenti.FindAsync(id);
+        var dipendente = await db.Dipendenti.Include(d => d.Sedi).FirstOrDefaultAsync(d => d.Id == id);
         if (dipendente is null) return NotFound();
 
-        Applica(dipendente, input);
+        if (await Applica(dipendente, input) is { } errore) return errore;
         await db.SaveChangesAsync();
         return dipendente.ToDto();
     }
@@ -135,8 +138,14 @@ public class DipendentiController(AppDbContext db) : ControllerBase
         return new CompensoDto(id, da, a, ore, dipendente.CompensoOrario, Math.Round(ore * dipendente.CompensoOrario, 2));
     }
 
-    private static void Applica(Dipendente d, DipendenteInput input)
+    /// <returns>Un errore di validazione, oppure null se i dati sono stati applicati.</returns>
+    private async Task<ActionResult?> Applica(Dipendente d, DipendenteInput input)
     {
+        var sediIds = input.SediIds.Distinct().ToList();
+        var sedi = await db.Sedi.Where(s => sediIds.Contains(s.Id)).ToListAsync();
+        if (sedi.Count != sediIds.Count) return ValidationProblem("Una delle sedi selezionate non esiste più.");
+        d.Sedi = sedi;
+
         d.Nome = input.Nome;
         d.Cognome = input.Cognome;
         d.Email = input.Email;
@@ -149,5 +158,6 @@ public class DipendentiController(AppDbContext db) : ControllerBase
         d.CompensoOrario = input.CompensoOrario;
         d.Materie = input.Materie;
         d.Attivo = input.Attivo;
+        return null;
     }
 }

@@ -13,11 +13,12 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
 {
     private DateOnly Oggi => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
 
+    /// <param name="sedeId">Sede dello studente; 0 = studenti senza sede.</param>
     [HttpGet]
-    public async Task<IEnumerable<PagamentoDto>> Elenco(int? studenteId, StatoPagamento? stato, bool soloScaduti = false)
+    public async Task<IEnumerable<PagamentoDto>> Elenco(int? studenteId, int? sedeId, StatoPagamento? stato, bool soloScaduti = false)
     {
         var oggi = Oggi;
-        var query = db.Pagamenti.Include(p => p.Studente).AsNoTracking();
+        var query = PerSede(db.Pagamenti.Include(p => p.Studente).AsNoTracking(), sedeId);
         if (studenteId is not null) query = query.Where(p => p.StudenteId == studenteId);
         if (stato is not null) query = query.Where(p => p.Stato == stato);
         if (soloScaduti) query = query.Where(p => p.Stato == StatoPagamento.DaPagare && p.Scadenza < oggi);
@@ -192,7 +193,7 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
 
     /// <summary>Riepilogo delle quote con scadenza nel mese indicato.</summary>
     [HttpGet("riepilogo")]
-    public async Task<ActionResult<RiepilogoPagamentiDto>> Riepilogo(int anno, int mese)
+    public async Task<ActionResult<RiepilogoPagamentiDto>> Riepilogo(int anno, int mese, int? sedeId)
     {
         if (mese is < 1 or > 12 || anno is < 2000 or > 2100) return ValidationProblem("Anno o mese non validi.");
 
@@ -200,7 +201,7 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
         var inizio = new DateOnly(anno, mese, 1);
         var fine = inizio.AddMonths(1);
 
-        var pagamenti = await db.Pagamenti.AsNoTracking()
+        var pagamenti = await PerSede(db.Pagamenti.AsNoTracking(), sedeId)
             .Where(p => p.Scadenza >= inizio && p.Scadenza < fine && p.Stato != StatoPagamento.Annullato)
             .ToListAsync();
 
@@ -208,6 +209,13 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
         var incassato = pagamenti.Where(p => p.Stato == StatoPagamento.Pagato).Sum(p => p.Importo);
         return new RiepilogoPagamentiDto(anno, mese, atteso, incassato, atteso - incassato, pagamenti.Count(p => p.Scaduto(oggi)));
     }
+
+    private static IQueryable<Pagamento> PerSede(IQueryable<Pagamento> query, int? sedeId) => sedeId switch
+    {
+        null => query,
+        0 => query.Where(p => p.Studente.SedeId == null),
+        _ => query.Where(p => p.Studente.SedeId == sedeId),
+    };
 
     private Task<Pagamento?> Trova(int id) =>
         db.Pagamenti.Include(p => p.Studente).FirstOrDefaultAsync(p => p.Id == id);
