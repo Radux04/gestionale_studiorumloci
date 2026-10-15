@@ -23,6 +23,13 @@ public static partial class Testo
 
     public static string Euro(decimal importo) => importo.ToString("C");
 
+    public static string Dimensione(long byte_) => byte_ switch
+    {
+        < 1024 => $"{byte_} B",
+        < 1024 * 1024 => $"{byte_ / 1024.0:0} KB",
+        _ => $"{byte_ / 1024.0 / 1024.0:0.0} MB",
+    };
+
     public static string Ore(decimal ore) => ore.ToString("0.##") + " h";
 
     public static string BadgeLead(StatoLead stato) => stato switch

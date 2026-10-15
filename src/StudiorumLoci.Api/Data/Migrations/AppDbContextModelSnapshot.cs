@@ -340,6 +340,17 @@ namespace StudiorumLoci.Api.Data.Migrations
                     b.Property<string>("Note")
                         .HasColumnType("text");
 
+                    b.Property<long?>("RicevutaDimensione")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RicevutaNome")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("RicevutaTipo")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateOnly>("Scadenza")
                         .HasColumnType("date");
 
@@ -355,6 +366,20 @@ namespace StudiorumLoci.Api.Data.Migrations
                     b.HasIndex("StudenteId");
 
                     b.ToTable("Pagamenti", "gestionale");
+                });
+
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Pagamenti.RicevutaFile", b =>
+                {
+                    b.Property<int>("PagamentoId")
+                        .HasColumnType("integer");
+
+                    b.Property<byte[]>("Contenuto")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.HasKey("PagamentoId");
+
+                    b.ToTable("RicevuteFile", "gestionale");
                 });
 
             modelBuilder.Entity("StudenteGenitore", b =>
@@ -419,6 +444,15 @@ namespace StudiorumLoci.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Studente");
+                });
+
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Pagamenti.RicevutaFile", b =>
+                {
+                    b.HasOne("StudiorumLoci.Api.Domain.Pagamenti.Pagamento", null)
+                        .WithOne()
+                        .HasForeignKey("StudiorumLoci.Api.Domain.Pagamenti.RicevutaFile", "PagamentoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Crm.Genitore", b =>

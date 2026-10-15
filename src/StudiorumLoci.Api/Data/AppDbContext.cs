@@ -20,6 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     // Pagamenti
     public DbSet<Pagamento> Pagamenti => Set<Pagamento>();
+    public DbSet<RicevutaFile> RicevuteFile => Set<RicevutaFile>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -81,6 +82,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Stato).HasConversion<string>();
             e.Property(x => x.Metodo).HasConversion<string>();
             e.HasOne(x => x.Studente).WithMany(x => x.Pagamenti).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.RicevutaNome).HasMaxLength(255);
+            e.Property(x => x.RicevutaTipo).HasMaxLength(100);
+        });
+
+        b.Entity<RicevutaFile>(e =>
+        {
+            e.ToTable("RicevuteFile");
+            e.HasKey(x => x.PagamentoId);
+            e.HasOne<Pagamento>().WithOne().HasForeignKey<RicevutaFile>(x => x.PagamentoId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 

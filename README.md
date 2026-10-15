@@ -48,7 +48,7 @@ src/StudiorumLoci.Api/
 | CRM – Storico contatti | `api/crm/interazioni/{id}` | modifica ed eliminazione |
 | Sito pubblico | `POST api/pubblico/contatti` | form contatti → lead (rate limit 5/min per IP) |
 | Dipendenti | `api/dipendenti` | CRUD (la DELETE elimina anche i turni), `/{id}/cessa`, `/{id}/turni` (CRUD), `/{id}/compenso?da=&a=` |
-| Pagamenti | `api/pagamenti` | CRUD, `/{id}/incasso`, `/{id}/annulla`, `/{id}/ripristina`, `/riepilogo?anno=&mese=` |
+| Pagamenti | `api/pagamenti` | CRUD, `/{id}/incasso`, `/{id}/annulla`, `/{id}/ripristina`, `/{id}/ricevuta` (POST multipart / GET / DELETE: foto o PDF, max 10 MB), `/riepilogo?anno=&mese=` |
 
 ## Avvio in locale
 

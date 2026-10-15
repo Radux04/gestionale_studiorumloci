@@ -30,5 +30,6 @@ public static class Mapping
     /// <remarks>Richiede che <see cref="Pagamento.Studente"/> sia caricato.</remarks>
     public static PagamentoDto ToDto(this Pagamento p, DateOnly oggi) => new(
         p.Id, p.StudenteId, $"{p.Studente.Cognome} {p.Studente.Nome}", p.Causale, p.Importo, p.Scadenza,
-        p.Stato, p.Scaduto(oggi), p.DataPagamento, p.Metodo, p.Note);
+        p.Stato, p.Scaduto(oggi), p.DataPagamento, p.Metodo, p.Note,
+        p.RicevutaNome is null ? null : new RicevutaDto(p.RicevutaNome, p.RicevutaTipo!, p.RicevutaDimensione ?? 0));
 }

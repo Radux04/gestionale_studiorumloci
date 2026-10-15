@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 using StudiorumLoci.Api.Contracts;
 using StudiorumLoci.Api.Data;
 using StudiorumLoci.Api.Domain.Pagamenti;
@@ -64,6 +65,11 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
         pagamento.Importo = input.Importo;
         pagamento.Scadenza = input.Scadenza;
         pagamento.Note = input.Note;
+        if (pagamento.Stato == StatoPagamento.Pagato)
+        {
+            if (input.Metodo is { } metodo) pagamento.Metodo = metodo;
+            if (input.DataPagamento is { } data) pagamento.DataPagamento = data;
+        }
         await db.SaveChangesAsync();
         await db.Entry(pagamento).Reference(p => p.Studente).LoadAsync();
         return pagamento.ToDto(Oggi);
@@ -106,6 +112,69 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
         pagamento.Stato = StatoPagamento.DaPagare;
         pagamento.DataPagamento = null;
         pagamento.Metodo = null;
+        await db.SaveChangesAsync();
+        return pagamento.ToDto(Oggi);
+    }
+
+    // ---- Ricevuta allegata (foto/PDF del bonifico) ----
+
+    /// <summary>Carica (o sostituisce) la ricevuta del pagamento.</summary>
+    [HttpPost("{id:int}/ricevuta")]
+    [RequestSizeLimit(Ricevute.DimensioneMassima + 64 * 1024)]
+    public async Task<ActionResult<PagamentoDto>> CaricaRicevuta(int id, IFormFile file)
+    {
+        var pagamento = await Trova(id);
+        if (pagamento is null) return NotFound();
+
+        if (file.Length == 0) return ValidationProblem("Il file è vuoto.");
+        if (file.Length > Ricevute.DimensioneMassima) return ValidationProblem("Il file supera i 10 MB.");
+
+        byte[] contenuto;
+        using (var ms = new MemoryStream())
+        {
+            await file.CopyToAsync(ms);
+            contenuto = ms.ToArray();
+        }
+
+        var tipo = FirmaFile.Riconosci(contenuto);
+        if (tipo is null || !Ricevute.TipiAmmessi.Contains(tipo))
+            return ValidationProblem("Formato non supportato: carica una foto (JPG, PNG, WEBP, HEIC) o un PDF.");
+
+        var esistente = await db.RicevuteFile.FindAsync(id);
+        if (esistente is null) db.RicevuteFile.Add(new RicevutaFile { PagamentoId = id, Contenuto = contenuto });
+        else esistente.Contenuto = contenuto;
+
+        pagamento.RicevutaNome = Path.GetFileName(file.FileName);
+        pagamento.RicevutaTipo = tipo;
+        pagamento.RicevutaDimensione = contenuto.LongLength;
+        await db.SaveChangesAsync();
+        return pagamento.ToDto(Oggi);
+    }
+
+    /// <summary>Restituisce la ricevuta da visualizzare nel browser.</summary>
+    [HttpGet("{id:int}/ricevuta")]
+    public async Task<IActionResult> Ricevuta(int id)
+    {
+        var pagamento = await db.Pagamenti.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+        var file = await db.RicevuteFile.AsNoTracking().FirstOrDefaultAsync(r => r.PagamentoId == id);
+        if (pagamento?.RicevutaTipo is null || file is null) return NotFound();
+
+        Response.Headers.ContentDisposition =
+            new ContentDispositionHeaderValue("inline") { FileNameStar = pagamento.RicevutaNome }.ToString();
+        Response.Headers.XContentTypeOptions = "nosniff";
+        return File(file.Contenuto, pagamento.RicevutaTipo);
+    }
+
+    [HttpDelete("{id:int}/ricevuta")]
+    public async Task<ActionResult<PagamentoDto>> EliminaRicevuta(int id)
+    {
+        var pagamento = await Trova(id);
+        if (pagamento is null) return NotFound();
+
+        await db.RicevuteFile.Where(r => r.PagamentoId == id).ExecuteDeleteAsync();
+        pagamento.RicevutaNome = null;
+        pagamento.RicevutaTipo = null;
+        pagamento.RicevutaDimensione = null;
         await db.SaveChangesAsync();
         return pagamento.ToDto(Oggi);
     }

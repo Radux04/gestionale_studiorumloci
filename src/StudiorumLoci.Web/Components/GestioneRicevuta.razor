@@ -1,0 +1,54 @@
+@* Ricevuta allegata a un pagamento: visualizza, sostituisci, rimuovi. Le modifiche sono immediate. *@
+@inject ApiClient Api
+
+<div class="border rounded p-2">
+    @if (Pagamento.Ricevuta is { } r)
+    {
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi @(r.Tipo == "application/pdf" ? "bi-file-earmark-pdf" : "bi-file-earmark-image") fs-4"></i>
+            <a href="@Api.UrlRicevuta(Pagamento.Id)" target="_blank" class="text-break">@r.Nome</a>
+            <span class="text-body-secondary small text-nowrap">@Testo.Dimensione(r.Dimensione)</span>
+            <span class="ms-auto"><BottoneConferma Testo="Rimuovi" Icona="bi-trash" OnConferma="Rimuovi" /></span>
+        </div>
+        <label class="form-label small mb-1">Sostituisci con un altro file</label>
+    }
+    else
+    {
+        <div class="small text-body-secondary mb-1">Nessuna ricevuta allegata.</div>
+    }
+    <InputFile class="form-control form-control-sm" accept="@Ricevute.Accept" OnChange="Carica" disabled="@inCorso" />
+    <div class="form-text">Foto (JPG, PNG, HEIC) o PDF, massimo 10 MB.</div>
+    @if (inCorso) { <div class="small"><span class="spinner-border spinner-border-sm"></span> Caricamento…</div> }
+    @if (errore is not null) { <div class="text-danger small mt-1">@errore</div> }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PagamentoDto Pagamento { get; set; } = null!;
+    /// <summary>Restituisce il pagamento aggiornato dopo un caricamento o una rimozione.</summary>
+    [Parameter] public EventCallback<PagamentoDto> OnCambiato { get; set; }
+
+    private bool inCorso;
+    private string? errore;
+
+    private Task Carica(InputFileChangeEventArgs e) => Esegui(() => Api.CaricaRicevuta(Pagamento.Id, e.File));
+
+    private Task Rimuovi() => Esegui(() => Api.EliminaRicevuta(Pagamento.Id));
+
+    private async Task Esegui(Func<Task<PagamentoDto>> azione)
+    {
+        inCorso = true;
+        errore = null;
+        try
+        {
+            await OnCambiato.InvokeAsync(await azione());
+        }
+        catch (ApiException ex)
+        {
+            errore = ex.Message;
+        }
+        finally
+        {
+            inCorso = false;
+        }
+    }
+}

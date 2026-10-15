@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Components.Forms;
 using StudiorumLoci.Shared;
 
 namespace StudiorumLoci.Web.Services;
@@ -75,6 +76,24 @@ public class ApiClient(HttpClient http)
     public Task<PagamentoDto> AnnullaPagamento(int id) => Send<PagamentoDto>(HttpMethod.Post, $"api/pagamenti/{id}/annulla");
     public Task<PagamentoDto> RipristinaPagamento(int id) => Send<PagamentoDto>(HttpMethod.Post, $"api/pagamenti/{id}/ripristina");
     public Task EliminaPagamento(int id) => Send(HttpMethod.Delete, $"api/pagamenti/{id}");
+
+    public async Task<PagamentoDto> CaricaRicevuta(int id, Stream contenuto, string nomeFile, string tipo)
+    {
+        using var form = new MultipartFormDataContent();
+        var file = new StreamContent(contenuto);
+        file.Headers.ContentType = new(string.IsNullOrEmpty(tipo) ? "application/octet-stream" : tipo);
+        form.Add(file, "file", nomeFile);
+        return await Send<PagamentoDto>(HttpMethod.Post, $"api/pagamenti/{id}/ricevuta", form);
+    }
+    public async Task<PagamentoDto> CaricaRicevuta(int id, IBrowserFile file)
+    {
+        if (file.Size > Ricevute.DimensioneMassima) throw new ApiException("Il file supera i 10 MB.");
+        await using var contenuto = file.OpenReadStream(Ricevute.DimensioneMassima);
+        return await CaricaRicevuta(id, contenuto, file.Name, file.ContentType);
+    }
+    public Task<PagamentoDto> EliminaRicevuta(int id) => Send<PagamentoDto>(HttpMethod.Delete, $"api/pagamenti/{id}/ricevuta");
+    /// <summary>Indirizzo diretto della ricevuta, da aprire in una nuova scheda.</summary>
+    public string UrlRicevuta(int id) => new Uri(http.BaseAddress!, $"api/pagamenti/{id}/ricevuta").ToString();
     public Task<RiepilogoPagamentiDto> Riepilogo(int anno, int mese) => Get<RiepilogoPagamentiDto>($"api/pagamenti/riepilogo?anno={anno}&mese={mese}");
 
     // ---- Infrastruttura ----
@@ -97,7 +116,12 @@ public class ApiClient(HttpClient http)
     private async Task<HttpResponseMessage> Invia(HttpMethod method, string url, object? body)
     {
         var request = new HttpRequestMessage(method, url);
-        if (body is not null) request.Content = JsonContent.Create(body, options: Json);
+        request.Content = body switch
+        {
+            null => null,
+            HttpContent contenuto => contenuto,
+            _ => JsonContent.Create(body, options: Json),
+        };
 
         HttpResponseMessage response;
         try

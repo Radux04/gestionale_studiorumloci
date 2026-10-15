@@ -55,7 +55,18 @@
                     <td>@p.Causale</td>
                     <td class="text-end">@Testo.Euro(p.Importo)</td>
                     <td><span class="badge @Testo.BadgePagamento(p)">@Testo.Stato(p)</span></td>
-                    <td>@(p.DataPagamento is { } d ? $"{Testo.Data(d)} · {Testo.Di(p.Metodo!.Value)}" : "")</td>
+                    <td class="text-nowrap">
+                        @if (p.Stato == StatoPagamento.Pagato && p.Metodo is { } metodo)
+                        {
+                            <i class="bi @IconaMetodo(metodo)" title="@Testo.Di(metodo)"></i>
+                            @Testo.Di(metodo)
+                            <span class="text-body-secondary">· @Testo.Data(p.DataPagamento)</span>
+                        }
+                        @if (p.Ricevuta is { } r)
+                        {
+                            <a href="@Api.UrlRicevuta(p.Id)" target="_blank" class="ms-1" title="Ricevuta: @r.Nome"><i class="bi bi-paperclip"></i></a>
+                        }
+                    </td>
                     <td class="text-end text-nowrap">
                         @if (p.Stato == StatoPagamento.DaPagare)
                         {
@@ -124,10 +135,32 @@
                     <InputDate class="form-control" @bind-Value="modulo.Scadenza" />
                 </div>
             </div>
+            @if (inModifica?.Stato == StatoPagamento.Pagato)
+            {
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Metodo di pagamento</label>
+                        <InputSelect class="form-select" @bind-Value="modulo.Metodo">
+                            @foreach (var m in Enum.GetValues<MetodoPagamento>()) { <option value="@m">@Testo.Di(m)</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Data incasso</label>
+                        <InputDate class="form-control" @bind-Value="modulo.DataPagamento" />
+                    </div>
+                </div>
+            }
             <div class="mb-3">
                 <label class="form-label">Note</label>
                 <InputTextArea class="form-control" rows="2" @bind-Value="modulo.Note" />
             </div>
+            @if (inModifica is not null && (modulo.Metodo == MetodoPagamento.Bonifico || inModifica.Ricevuta is not null))
+            {
+                <div class="mb-3">
+                    <label class="form-label">Ricevuta del bonifico</label>
+                    <GestioneRicevuta Pagamento="inModifica" OnCambiato="RicevutaCambiata" />
+                </div>
+            }
             <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
         </EditForm>
     }
@@ -150,6 +183,14 @@
                     <InputDate class="form-control" @bind-Value="incasso.DataPagamento" />
                 </div>
             </div>
+            @if (incasso.Metodo == MetodoPagamento.Bonifico)
+            {
+                <div class="mb-3">
+                    <label class="form-label">Ricevuta del bonifico <span class="text-body-secondary">(facoltativa)</span></label>
+                    <InputFile class="form-control" accept="@Ricevute.Accept" OnChange="e => ricevutaScelta = e.File" />
+                    <div class="form-text">Foto (JPG, PNG, HEIC) o PDF, massimo 10 MB. Puoi aggiungerla anche dopo, da «Modifica».</div>
+                </div>
+            }
             <button class="btn btn-success" disabled="@Caricamento"><i class="bi bi-check-lg"></i> Conferma incasso</button>
         </EditForm>
     }
@@ -170,9 +211,20 @@
 
     private PagamentoInput? modulo;
     private int? idInModifica;
+    private PagamentoDto? inModifica;
 
     private PagamentoDto? daIncassare;
     private RegistraIncassoInput incasso = new();
+    private IBrowserFile? ricevutaScelta;
+
+    private static string IconaMetodo(MetodoPagamento m) => m switch
+    {
+        MetodoPagamento.Contanti => "bi-cash",
+        MetodoPagamento.Bonifico => "bi-bank",
+        MetodoPagamento.Carta or MetodoPagamento.Pos => "bi-credit-card",
+        MetodoPagamento.Satispay => "bi-phone",
+        _ => "bi-wallet2",
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -212,13 +264,23 @@
     private void ApriNuovo()
     {
         idInModifica = null;
+        inModifica = null;
         modulo = new PagamentoInput { StudenteId = filtroStudente ?? 0 };
     }
 
     private void ApriModifica(PagamentoDto p)
     {
         idInModifica = p.Id;
+        inModifica = p;
         modulo = PagamentoInput.Da(p);
+    }
+
+    /// <summary>La ricevuta si salva subito: aggiorno la riga in tabella senza chiudere il modulo.</summary>
+    private void RicevutaCambiata(PagamentoDto aggiornato)
+    {
+        inModifica = aggiornato;
+        var i = pagamenti.FindIndex(x => x.Id == aggiornato.Id);
+        if (i >= 0) pagamenti[i] = aggiornato;
     }
 
     private async Task Salva()
@@ -234,18 +296,28 @@
     private void ApriIncasso(PagamentoDto p)
     {
         daIncassare = p;
+        ricevutaScelta = null;
         incasso = new RegistraIncassoInput { DataPagamento = DateOnly.FromDateTime(DateTime.Today) };
     }
 
     private async Task Incassa()
     {
         var p = daIncassare!;
-        if (await Esegui(() => Api.RegistraIncasso(p.Id, incasso)))
+        if (!await Esegui(() => Api.RegistraIncasso(p.Id, incasso))) return;
+
+        // L'incasso è registrato: un errore sulla ricevuta non lo annulla, lo segnalo e basta.
+        string? erroreRicevuta = null;
+        if (incasso.Metodo == MetodoPagamento.Bonifico && ricevutaScelta is not null)
         {
-            daIncassare = null;
-            await Carica();
-            Conferma = $"Incassati {Testo.Euro(p.Importo)} da {p.Studente}.";
+            try { await Api.CaricaRicevuta(p.Id, ricevutaScelta); }
+            catch (ApiException ex) { erroreRicevuta = ex.Message; }
         }
+
+        daIncassare = null;
+        await Carica();
+        Conferma = $"Incassati {Testo.Euro(p.Importo)} da {p.Studente}.";
+        if (erroreRicevuta is not null)
+            Errore = $"La ricevuta non è stata caricata: {erroreRicevuta} Puoi riprovare da «Modifica».";
     }
 
     private async Task Annulla(PagamentoDto p)

@@ -18,5 +18,11 @@ public class Pagamento : Entity
     public MetodoPagamento? Metodo { get; set; }
     public string? Note { get; set; }
 
+    // Ricevuta allegata (es. foto/PDF del bonifico): qui solo i metadati,
+    // il contenuto sta in RicevutaFile per non caricarlo negli elenchi.
+    public string? RicevutaNome { get; set; }
+    public string? RicevutaTipo { get; set; }
+    public long? RicevutaDimensione { get; set; }
+
     public bool Scaduto(DateOnly oggi) => Stato == StatoPagamento.DaPagare && Scadenza < oggi;
 }
