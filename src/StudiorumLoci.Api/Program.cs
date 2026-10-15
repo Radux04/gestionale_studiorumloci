@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using StudiorumLoci.Api;
@@ -37,6 +38,15 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
 });
 
+// In produzione l'API sta dietro il proxy dell'hosting (Render): l'IP reale del
+// visitatore e lo schema https arrivano negli header X-Forwarded-*.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownIPNetworks.Clear();
+    o.KnownProxies.Clear();
+});
+
 // TODO: autenticazione per lo staff (es. ASP.NET Core Identity + cookie/JWT) e
 // [Authorize] su tutti i controller tranne PubblicoController.
 
@@ -50,6 +60,10 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
 }
+else
+{
+    app.UseForwardedHeaders();
+}
 
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
@@ -58,5 +72,8 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Usato dall'hosting per verificare che l'API sia attiva.
+app.MapGet("/salute", () => Results.Ok("ok"));
 
 app.Run();

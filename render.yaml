@@ -1,0 +1,20 @@
+# Blueprint Render: crea il servizio dell'API dal Dockerfile nella root.
+services:
+  - type: web
+    name: studiorumloci-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /salute
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # Password del database Supabase: da inserire a mano nel pannello di Render.
+      - key: Database__Password
+        sync: false
+      # Domini autorizzati a chiamare l'API dal browser (CORS).
+      - key: Cors__Origini__0
+        value: https://studiorum-loci.vercel.app
+      - key: Cors__Origini__1
+        sync: false
