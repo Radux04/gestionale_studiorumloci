@@ -1,0 +1,249 @@
+@page "/crm/lead"
+@inherits PaginaBase
+
+<PageTitle>Richieste · Studiorum Loci</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Richieste (lead)</h1>
+    <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuova richiesta</button>
+</div>
+
+<Avvisi Errore="@Errore" Conferma="@Conferma" />
+
+<div class="row g-2 mb-3">
+    <div class="col-sm-4 col-lg-3">
+        <SelezioneEnum TEnum="StatoLead" Valore="filtroStato" ValoreChanged="CambiaFiltro" TestoTutti="Tutti gli stati" />
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Ricevuta</th><th>Nome</th><th>Contatti</th><th>Fonte</th><th>Stato</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var l in lead)
+            {
+                <tr>
+                    <td class="text-nowrap">@Testo.DataOra(l.CreatoIl)</td>
+                    <td>@l.Nome</td>
+                    <td>
+                        @if (l.Email is not null) { <div><i class="bi bi-envelope"></i> @l.Email</div> }
+                        @if (l.Telefono is not null) { <div><i class="bi bi-telephone"></i> @l.Telefono</div> }
+                    </td>
+                    <td>@Testo.Di(l.Fonte)</td>
+                    <td><span class="badge @Testo.BadgeLead(l.Stato)">@Testo.Di(l.Stato)</span></td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ApriDettaglio(l)">Apri</button>
+                    </td>
+                </tr>
+            }
+            @if (lead.Count == 0 && !Caricamento)
+            {
+                <tr><td colspan="6" class="text-body-secondary">Nessuna richiesta.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@* ---- Nuovo lead ---- *@
+<Finestra Visibile="nuovo is not null" Titolo="Nuova richiesta" OnChiudi="() => nuovo = null">
+    @if (nuovo is not null)
+    {
+        <EditForm Model="nuovo" OnValidSubmit="SalvaNuovo">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Nome</label>
+                <InputText class="form-control" @bind-Value="nuovo.Nome" />
+                <ValidationMessage For="() => nuovo.Nome" />
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label">Email</label>
+                    <InputText class="form-control" @bind-Value="nuovo.Email" />
+                    <ValidationMessage For="() => nuovo.Email" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label">Telefono</label>
+                    <InputText class="form-control" @bind-Value="nuovo.Telefono" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Fonte</label>
+                <InputSelect class="form-select" @bind-Value="nuovo.Fonte">
+                    @foreach (var f in Enum.GetValues<FonteLead>()) { <option value="@f">@Testo.Di(f)</option> }
+                </InputSelect>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Messaggio / note</label>
+                <InputTextArea class="form-control" rows="3" @bind-Value="nuovo.Messaggio" />
+            </div>
+            <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
+        </EditForm>
+    }
+</Finestra>
+
+@* ---- Dettaglio lead ---- *@
+<Finestra Visibile="selezionato is not null" Titolo="@(selezionato?.Nome ?? "")" Grande OnChiudi="ChiudiDettaglio">
+    @if (selezionato is not null)
+    {
+        <Avvisi Errore="@Errore" />
+
+        <dl class="row mb-3">
+            <dt class="col-sm-3">Ricevuta</dt><dd class="col-sm-9">@Testo.DataOra(selezionato.CreatoIl) · @Testo.Di(selezionato.Fonte)</dd>
+            <dt class="col-sm-3">Email</dt><dd class="col-sm-9">@(selezionato.Email ?? "—")</dd>
+            <dt class="col-sm-3">Telefono</dt><dd class="col-sm-9">@(selezionato.Telefono ?? "—")</dd>
+            <dt class="col-sm-3">Messaggio</dt><dd class="col-sm-9" style="white-space: pre-line">@(selezionato.Messaggio ?? "—")</dd>
+            <dt class="col-sm-3">Stato</dt>
+            <dd class="col-sm-9">
+                @if (selezionato.Stato == StatoLead.Convertito)
+                {
+                    <span class="badge text-bg-success">Convertito</span>
+                    <a class="ms-2" href="crm/genitori">vai ai genitori</a>
+                }
+                else
+                {
+                    <select class="form-select form-select-sm d-inline-block w-auto" value="@selezionato.Stato" @onchange="CambiaStato">
+                        @foreach (var s in Enum.GetValues<StatoLead>().Where(s => s != StatoLead.Convertito))
+                        {
+                            <option value="@s">@Testo.Di(s)</option>
+                        }
+                    </select>
+                }
+            </dd>
+        </dl>
+
+        <h6>Storico contatti</h6>
+        <ul class="list-group mb-3">
+            @foreach (var i in interazioni)
+            {
+                <li class="list-group-item">
+                    <div class="small text-body-secondary">@Testo.DataOra(i.Data) · @Testo.Di(i.Tipo)</div>
+                    @i.Descrizione
+                </li>
+            }
+            @if (interazioni.Count == 0) { <li class="list-group-item text-body-secondary">Nessun contatto registrato.</li> }
+        </ul>
+
+        <EditForm Model="nuovaInterazione" OnValidSubmit="AggiungiInterazione" class="row g-2 mb-4">
+            <DataAnnotationsValidator />
+            <div class="col-sm-3">
+                <InputSelect class="form-select" @bind-Value="nuovaInterazione.Tipo">
+                    @foreach (var t in Enum.GetValues<TipoInterazione>()) { <option value="@t">@Testo.Di(t)</option> }
+                </InputSelect>
+            </div>
+            <div class="col-sm-7">
+                <InputText class="form-control" placeholder="Es. richiamata, fissato colloquio giovedì" @bind-Value="nuovaInterazione.Descrizione" />
+                <ValidationMessage For="() => nuovaInterazione.Descrizione" />
+            </div>
+            <div class="col-sm-2 d-grid">
+                <button class="btn btn-outline-primary" disabled="@Caricamento">Aggiungi</button>
+            </div>
+        </EditForm>
+
+        @if (selezionato.Stato != StatoLead.Convertito)
+        {
+            <h6>Converti in genitore</h6>
+            <p class="small text-body-secondary">Crea l'anagrafica del genitore nel CRM. Gli studenti si aggiungono poi dalla pagina Studenti.</p>
+            <EditForm Model="conversione" OnValidSubmit="Converti" class="row g-2">
+                <DataAnnotationsValidator />
+                <div class="col-sm-4">
+                    <InputText class="form-control" placeholder="Nome" @bind-Value="conversione.Nome" />
+                    <ValidationMessage For="() => conversione.Nome" />
+                </div>
+                <div class="col-sm-4">
+                    <InputText class="form-control" placeholder="Cognome" @bind-Value="conversione.Cognome" />
+                    <ValidationMessage For="() => conversione.Cognome" />
+                </div>
+                <div class="col-sm-4 d-grid">
+                    <button class="btn btn-success" disabled="@Caricamento"><i class="bi bi-person-check"></i> Converti</button>
+                </div>
+            </EditForm>
+        }
+    }
+</Finestra>
+
+@code {
+    private List<LeadDto> lead = [];
+    private StatoLead? filtroStato;
+
+    private LeadInput? nuovo;
+    private LeadDto? selezionato;
+    private List<InterazioneDto> interazioni = [];
+    private InterazioneInput nuovaInterazione = new();
+    private GenitoreInput conversione = new();
+
+    protected override Task OnInitializedAsync() => Carica();
+
+    private Task Carica() => Esegui(async () => lead = await Api.Lead(filtroStato));
+
+    private Task CambiaFiltro(StatoLead? stato)
+    {
+        filtroStato = stato;
+        return Carica();
+    }
+
+    private void ApriNuovo() => nuovo = new LeadInput();
+
+    private async Task SalvaNuovo()
+    {
+        if (await Esegui(() => Api.CreaLead(nuovo!), "Richiesta registrata."))
+        {
+            nuovo = null;
+            await Carica();
+        }
+    }
+
+    private async Task ApriDettaglio(LeadDto l)
+    {
+        selezionato = l;
+        nuovaInterazione = new();
+        // Proposta: prima parola = nome, il resto = cognome.
+        var parti = l.Nome.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        conversione = new GenitoreInput
+        {
+            Nome = parti.ElementAtOrDefault(0) ?? "",
+            Cognome = parti.ElementAtOrDefault(1) ?? "",
+            Email = l.Email,
+            Telefono = l.Telefono,
+        };
+        await Esegui(async () => interazioni = await Api.InterazioniLead(l.Id));
+    }
+
+    private async Task ChiudiDettaglio()
+    {
+        selezionato = null;
+        await Carica();
+    }
+
+    private Task CambiaStato(ChangeEventArgs e) => Esegui(async () =>
+    {
+        var stato = Enum.Parse<StatoLead>(e.Value!.ToString()!);
+        selezionato = await Api.CambiaStatoLead(selezionato!.Id, stato);
+    });
+
+    private async Task AggiungiInterazione()
+    {
+        var id = selezionato!.Id;
+        if (await Esegui(() => Api.AggiungiInterazioneLead(id, nuovaInterazione)))
+        {
+            nuovaInterazione = new();
+            // L'API porta il lead da "Nuovo" a "Contattato": ricarico entrambi.
+            await Esegui(async () =>
+            {
+                interazioni = await Api.InterazioniLead(id);
+                selezionato = (await Api.Lead()).FirstOrDefault(x => x.Id == id) ?? selezionato;
+            });
+        }
+    }
+
+    private async Task Converti()
+    {
+        if (await Esegui(() => Api.ConvertiLead(selezionato!.Id, conversione), $"{conversione.Nome} {conversione.Cognome} aggiunto ai genitori."))
+        {
+            selezionato = null;
+            await Carica();
+            Conferma = $"{conversione.Nome} {conversione.Cognome} aggiunto ai genitori.";
+        }
+    }
+}

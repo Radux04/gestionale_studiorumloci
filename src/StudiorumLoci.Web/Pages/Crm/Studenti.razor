@@ -1,0 +1,174 @@
+@page "/crm/studenti"
+@inherits PaginaBase
+
+<PageTitle>Studenti · Studiorum Loci</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Studenti</h1>
+    <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo studente</button>
+</div>
+
+<Avvisi Errore="@Errore" Conferma="@Conferma" />
+
+<div class="row g-2 align-items-center mb-3">
+    <div class="col-sm-6 col-lg-4">
+        <input class="form-control" type="search" placeholder="Cerca per nome o cognome" @bind="cerca" @bind:event="oninput" @bind:after="Carica" />
+    </div>
+    <div class="col-auto">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="soloAttivi" @bind="soloAttivi" @bind:after="Carica" />
+            <label class="form-check-label" for="soloAttivi">Solo attivi</label>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Studente</th><th>Scuola</th><th>Classe</th><th>Genitori</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var s in studenti)
+            {
+                <tr class="@(s.Attivo ? "" : "text-body-secondary")">
+                    <td>
+                        @s.NomeCompleto
+                        @if (!s.Attivo) { <span class="badge text-bg-secondary ms-1">Non attivo</span> }
+                    </td>
+                    <td>@s.Scuola</td>
+                    <td>@s.Classe</td>
+                    <td>@string.Join(", ", s.GenitoriIds.Select(NomeGenitore))</td>
+                    <td class="text-end text-nowrap">
+                        <a class="btn btn-sm btn-outline-secondary" href="pagamenti?studenteId=@s.Id" title="Pagamenti"><i class="bi bi-cash-coin"></i></a>
+                        <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(s)"><i class="bi bi-pencil"></i></button>
+                        @if (s.Attivo)
+                        {
+                            <BottoneConferma Testo="Disattiva" Icona="bi-archive" OnConferma="() => Disattiva(s)" />
+                        }
+                    </td>
+                </tr>
+            }
+            @if (studenti.Count == 0 && !Caricamento)
+            {
+                <tr><td colspan="5" class="text-body-secondary">Nessuno studente trovato.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuovo studente" : "Modifica studente")" Grande OnChiudi="() => modulo = null">
+    @if (modulo is not null)
+    {
+        <EditForm Model="modulo" OnValidSubmit="Salva">
+            <DataAnnotationsValidator />
+            <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label">Nome</label>
+                    <InputText class="form-control" @bind-Value="modulo.Nome" />
+                    <ValidationMessage For="() => modulo.Nome" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label">Cognome</label>
+                    <InputText class="form-control" @bind-Value="modulo.Cognome" />
+                    <ValidationMessage For="() => modulo.Cognome" />
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-4">
+                    <label class="form-label">Data di nascita</label>
+                    <InputDate class="form-control" @bind-Value="modulo.DataNascita" />
+                </div>
+                <div class="col-sm-5">
+                    <label class="form-label">Scuola</label>
+                    <InputText class="form-control" @bind-Value="modulo.Scuola" />
+                </div>
+                <div class="col-sm-3">
+                    <label class="form-label">Classe</label>
+                    <InputText class="form-control" placeholder="es. 2B" @bind-Value="modulo.Classe" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Genitori / tutori</label>
+                @if (genitori.Count == 0)
+                {
+                    <div class="small text-body-secondary">Nessun genitore in anagrafica. <a href="crm/genitori">Aggiungine uno</a>.</div>
+                }
+                <div class="border rounded p-2" style="max-height: 12rem; overflow-y: auto">
+                    @foreach (var g in genitori)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="g@(g.Id)"
+                                   checked="@modulo.GenitoriIds.Contains(g.Id)" @onchange="e => ImpostaGenitore(g.Id, (bool)e.Value!)" />
+                            <label class="form-check-label" for="g@(g.Id)">@g.NomeCompleto <span class="text-body-secondary small">@g.Telefono</span></label>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Note</label>
+                <InputTextArea class="form-control" rows="2" placeholder="Allergie, DSA, materie da seguire…" @bind-Value="modulo.Note" />
+            </div>
+            <div class="form-check mb-3">
+                <InputCheckbox class="form-check-input" id="attivo" @bind-Value="modulo.Attivo" />
+                <label class="form-check-label" for="attivo">Attivo (frequenta il doposcuola)</label>
+            </div>
+            <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
+        </EditForm>
+    }
+</Finestra>
+
+@code {
+    private List<StudenteDto> studenti = [];
+    private List<GenitoreDto> genitori = [];
+    private string? cerca;
+    private bool soloAttivi = true;
+
+    private StudenteInput? modulo;
+    private int? idInModifica;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Esegui(async () => genitori = await Api.Genitori());
+        await Carica();
+    }
+
+    private Task Carica() => Esegui(async () => studenti = await Api.Studenti(cerca, soloAttivi));
+
+    private string NomeGenitore(int id) => genitori.FirstOrDefault(g => g.Id == id)?.NomeCompleto ?? $"#{id}";
+
+    private void ApriNuovo()
+    {
+        idInModifica = null;
+        modulo = new StudenteInput();
+    }
+
+    private void ApriModifica(StudenteDto s)
+    {
+        idInModifica = s.Id;
+        modulo = StudenteInput.Da(s);
+    }
+
+    private void ImpostaGenitore(int id, bool selezionato)
+    {
+        modulo!.GenitoriIds.Remove(id);
+        if (selezionato) modulo.GenitoriIds.Add(id);
+    }
+
+    private async Task Salva()
+    {
+        var ok = await Esegui(() => idInModifica is { } id ? Api.ModificaStudente(id, modulo!) : Api.CreaStudente(modulo!),
+            $"{modulo!.Nome} {modulo.Cognome} salvato.");
+        if (ok)
+        {
+            var conferma = Conferma;
+            modulo = null;
+            await Carica();
+            Conferma = conferma;
+        }
+    }
+
+    private async Task Disattiva(StudenteDto s)
+    {
+        if (await Esegui(() => Api.DisattivaStudente(s.Id))) await Carica();
+    }
+}

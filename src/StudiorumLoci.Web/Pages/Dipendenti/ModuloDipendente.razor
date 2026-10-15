@@ -1,0 +1,78 @@
+@* Form anagrafica dipendente, usato sia in elenco sia nella scheda. *@
+
+<EditForm Model="Modello" OnValidSubmit="OnSalva">
+    <DataAnnotationsValidator />
+    <div class="row g-2 mb-3">
+        <div class="col-sm-6">
+            <label class="form-label">Nome</label>
+            <InputText class="form-control" @bind-Value="Modello.Nome" />
+            <ValidationMessage For="() => Modello.Nome" />
+        </div>
+        <div class="col-sm-6">
+            <label class="form-label">Cognome</label>
+            <InputText class="form-control" @bind-Value="Modello.Cognome" />
+            <ValidationMessage For="() => Modello.Cognome" />
+        </div>
+    </div>
+    <div class="row g-2 mb-3">
+        <div class="col-sm-5">
+            <label class="form-label">Email</label>
+            <InputText class="form-control" type="email" @bind-Value="Modello.Email" />
+            <ValidationMessage For="() => Modello.Email" />
+        </div>
+        <div class="col-sm-3">
+            <label class="form-label">Telefono</label>
+            <InputText class="form-control" type="tel" @bind-Value="Modello.Telefono" />
+        </div>
+        <div class="col-sm-4">
+            <label class="form-label">Codice fiscale</label>
+            <InputText class="form-control text-uppercase" maxlength="16" @bind-Value="Modello.CodiceFiscale" />
+        </div>
+    </div>
+    <div class="row g-2 mb-3">
+        <div class="col-sm-4">
+            <label class="form-label">Ruolo</label>
+            <InputSelect class="form-select" @bind-Value="Modello.Ruolo">
+                @foreach (var r in Enum.GetValues<RuoloDipendente>()) { <option value="@r">@Testo.Di(r)</option> }
+            </InputSelect>
+        </div>
+        <div class="col-sm-5">
+            <label class="form-label">Contratto</label>
+            <InputSelect class="form-select" @bind-Value="Modello.Contratto">
+                @foreach (var c in Enum.GetValues<TipoContratto>()) { <option value="@c">@Testo.Di(c)</option> }
+            </InputSelect>
+        </div>
+        <div class="col-sm-3">
+            <label class="form-label">Compenso €/ora</label>
+            <InputNumber class="form-control" step="0.50" @bind-Value="Modello.CompensoOrario" />
+            <ValidationMessage For="() => Modello.CompensoOrario" />
+        </div>
+    </div>
+    <div class="row g-2 mb-3">
+        <div class="col-sm-4">
+            <label class="form-label">Data assunzione</label>
+            <InputDate class="form-control" @bind-Value="Modello.DataAssunzione" />
+        </div>
+        <div class="col-sm-4">
+            <label class="form-label">Data cessazione</label>
+            <InputDate class="form-control" @bind-Value="Modello.DataCessazione" />
+        </div>
+        <div class="col-sm-4 d-flex align-items-end">
+            <div class="form-check mb-2">
+                <InputCheckbox class="form-check-input" id="attivo" @bind-Value="Modello.Attivo" />
+                <label class="form-check-label" for="attivo">In servizio</label>
+            </div>
+        </div>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Materie</label>
+        <InputText class="form-control" placeholder="es. Matematica, Inglese" @bind-Value="Modello.Materie" />
+    </div>
+    <button class="btn btn-primary" disabled="@Disabilitato">Salva</button>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired] public DipendenteInput Modello { get; set; } = null!;
+    [Parameter] public bool Disabilitato { get; set; }
+    [Parameter] public EventCallback OnSalva { get; set; }
+}

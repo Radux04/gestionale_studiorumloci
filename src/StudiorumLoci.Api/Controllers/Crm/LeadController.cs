@@ -81,6 +81,11 @@ public class LeadController(AppDbContext db) : ControllerBase
         return genitore.ToDto();
     }
 
+    [HttpGet("{id:int}/interazioni")]
+    public async Task<IEnumerable<InterazioneDto>> Interazioni(int id) =>
+        (await db.Interazioni.AsNoTracking().Where(i => i.LeadId == id).OrderByDescending(i => i.Data).ToListAsync())
+            .Select(i => i.ToDto());
+
     [HttpPost("{id:int}/interazioni")]
     public async Task<ActionResult<InterazioneDto>> AggiungiInterazione(int id, InterazioneInput input)
     {

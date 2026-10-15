@@ -1,4 +1,4 @@
-using StudiorumLoci.Api.Domain.Common;
+﻿using StudiorumLoci.Api.Domain.Common;
 
 namespace StudiorumLoci.Api.Domain.Crm;
 
@@ -15,5 +15,3 @@ public class Interazione : Entity
     public int? GenitoreId { get; set; }
     public Genitore? Genitore { get; set; }
 }
-
-public enum TipoInterazione { Telefonata, Email, Colloquio, Messaggio, Altro }

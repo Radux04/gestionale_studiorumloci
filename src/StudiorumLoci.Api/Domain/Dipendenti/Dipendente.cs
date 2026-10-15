@@ -1,4 +1,4 @@
-using StudiorumLoci.Api.Domain.Common;
+﻿using StudiorumLoci.Api.Domain.Common;
 
 namespace StudiorumLoci.Api.Domain.Dipendenti;
 
@@ -21,7 +21,3 @@ public class Dipendente : Entity
 
     public List<Turno> Turni { get; set; } = [];
 }
-
-public enum RuoloDipendente { Tutor, Educatore, Coordinatore, Segreteria, Amministrazione }
-
-public enum TipoContratto { Dipendente, Collaborazione, PartitaIva, PrestazioneOccasionale, Volontario }

@@ -1,0 +1,58 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Studiorum Loci</a>
+        <button title="Menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-speedometer2"></i> Panoramica
+            </NavLink>
+        </div>
+
+        <div class="nav-section px-3">CRM</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="crm/lead">
+                <i class="bi bi-inbox"></i> Richieste (lead)
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="crm/studenti">
+                <i class="bi bi-mortarboard"></i> Studenti
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="crm/genitori">
+                <i class="bi bi-people"></i> Genitori
+            </NavLink>
+        </div>
+
+        <div class="nav-section px-3">Gestione</div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="dipendenti">
+                <i class="bi bi-person-badge"></i> Dipendenti
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="pagamenti">
+                <i class="bi bi-cash-coin"></i> Pagamenti
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

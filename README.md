@@ -1,9 +1,31 @@
 # gestionale_StudiorumLoci
 
-Gestionale per il doposcuola **Studiorum Loci**: API REST in C# (ASP.NET Core, .NET 10) con CRM, gestione dipendenti e gestione pagamenti.
-Il sito pubblico [studiorum-loci.vercel.app](https://studiorum-loci.vercel.app) comunica con questa API.
+Gestionale per il doposcuola **Studiorum Loci**, interamente in C# (.NET 10): CRM, gestione dipendenti e gestione pagamenti.
+Il sito pubblico [studiorum-loci.vercel.app](https://studiorum-loci.vercel.app) comunica con l'API.
 
 ## Struttura
+
+| Progetto | Cosa contiene |
+|---|---|
+| `src/StudiorumLoci.Api` | API REST (ASP.NET Core + EF Core, PostgreSQL su Supabase) |
+| `src/StudiorumLoci.Web` | Interfaccia per lo staff (Blazor WebAssembly + Bootstrap) |
+| `src/StudiorumLoci.Shared` | DTO ed enum condivisi tra API e interfaccia |
+
+### Interfaccia (`StudiorumLoci.Web`)
+
+| Pagina | Percorso |
+|---|---|
+| Panoramica: richieste nuove, studenti/dipendenti attivi, rette scadute, incassi del mese | `/` |
+| Richieste (lead): filtro per stato, storico contatti, conversione in genitore | `/crm/lead` |
+| Studenti: ricerca, anagrafica, collegamento ai genitori | `/crm/studenti` |
+| Genitori: anagrafica e storico contatti | `/crm/genitori` |
+| Dipendenti: elenco e anagrafica | `/dipendenti` |
+| Scheda dipendente: turni del mese e compenso maturato | `/dipendenti/{id}` |
+| Pagamenti: quote, incassi, annullamenti, riepilogo mensile | `/pagamenti` |
+
+L'indirizzo dell'API si imposta in `src/StudiorumLoci.Web/wwwroot/appsettings.json` (`ApiUrl`).
+
+### API (`StudiorumLoci.Api`)
 
 ```
 src/StudiorumLoci.Api/
@@ -12,7 +34,7 @@ src/StudiorumLoci.Api/
 │   ├── Dipendenti/  Dipendente, Turno
 │   └── Pagamenti/   Pagamento
 ├── Data/            AppDbContext (EF Core) e migrazioni
-├── Contracts/       DTO di input/output e mapping
+├── Contracts/       Mapping entità → DTO
 └── Controllers/     Endpoint REST
 ```
 
@@ -31,12 +53,15 @@ src/StudiorumLoci.Api/
 
 Requisiti: [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
+In due terminali separati:
+
 ```bash
 dotnet tool restore
-dotnet run --project src/StudiorumLoci.Api --launch-profile http
+dotnet run --project src/StudiorumLoci.Api --launch-profile http   # API → http://localhost:5078
+dotnet run --project src/StudiorumLoci.Web --launch-profile http   # Gestionale → http://localhost:5150
 ```
 
-- Documentazione interattiva: http://localhost:5078/scalar
+- Documentazione interattiva dell'API: http://localhost:5078/scalar
 - Esempi di chiamate pronti: [src/StudiorumLoci.Api/StudiorumLoci.Api.http](src/StudiorumLoci.Api/StudiorumLoci.Api.http)
 
 Nuova migrazione dopo aver modificato le entità:
@@ -74,5 +99,4 @@ dotnet ef database update -p src/StudiorumLoci.Api -s src/StudiorumLoci.Api
 - [ ] Hosting dell'API (Vercel non esegue .NET: Azure App Service, Render, Railway, Fly.io…)
 - [ ] Iscrizioni a corsi/fasce orarie e presenze degli studenti
 - [ ] Generazione automatica delle rette mensili e ricevute
-- [ ] Interfaccia per lo staff (Blazor o pagina riservata sul sito)
 - [ ] Test automatici

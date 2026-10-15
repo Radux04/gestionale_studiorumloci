@@ -1,0 +1,30 @@
+@* Bottone per azioni distruttive: al primo clic chiede conferma, al secondo esegue. *@
+
+@if (inAttesa)
+{
+    <span class="btn-group btn-group-sm">
+        <button class="btn btn-danger" @onclick="Esegui">Conferma</button>
+        <button class="btn btn-outline-secondary" @onclick="() => inAttesa = false">Annulla</button>
+    </span>
+}
+else
+{
+    <button class="btn btn-sm @Classe" title="@Testo" @onclick="() => inAttesa = true">
+        @if (Icona is not null) { <i class="bi @Icona"></i> } else { @Testo }
+    </button>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Testo { get; set; } = "";
+    [Parameter] public string? Icona { get; set; }
+    [Parameter] public string Classe { get; set; } = "btn-outline-danger";
+    [Parameter] public EventCallback OnConferma { get; set; }
+
+    private bool inAttesa;
+
+    private async Task Esegui()
+    {
+        inAttesa = false;
+        await OnConferma.InvokeAsync();
+    }
+}

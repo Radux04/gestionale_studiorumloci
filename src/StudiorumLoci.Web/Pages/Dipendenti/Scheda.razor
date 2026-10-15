@@ -1,0 +1,177 @@
+@page "/dipendenti/{Id:int}"
+@inherits PaginaBase
+
+<PageTitle>@(dipendente?.NomeCompleto ?? "Dipendente") · Studiorum Loci</PageTitle>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="dipendenti">Dipendenti</a></li>
+        <li class="breadcrumb-item active">@dipendente?.NomeCompleto</li>
+    </ol>
+</nav>
+
+<Avvisi Errore="@Errore" Conferma="@Conferma" />
+
+@if (dipendente is not null)
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h1 class="mb-0">
+            @dipendente.NomeCompleto
+            @if (!dipendente.Attivo) { <span class="badge text-bg-secondary fs-6 align-middle">Cessato</span> }
+        </h1>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" @onclick="() => modulo = DipendenteInput.Da(dipendente)"><i class="bi bi-pencil"></i> Modifica</button>
+            @if (dipendente.Attivo)
+            {
+                <BottoneConferma Testo="Cessa rapporto" OnConferma="Cessa" />
+            }
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card mb-3">
+                <div class="card-header">Anagrafica</div>
+                <div class="card-body">
+                    <dl class="mb-0">
+                        <dt>Ruolo</dt><dd>@Testo.Di(dipendente.Ruolo) · @Testo.Di(dipendente.Contratto)</dd>
+                        <dt>Compenso</dt><dd>@Testo.Euro(dipendente.CompensoOrario) / ora</dd>
+                        <dt>Materie</dt><dd>@(dipendente.Materie ?? "—")</dd>
+                        <dt>Contatti</dt><dd>@(dipendente.Email ?? "—")<br />@dipendente.Telefono</dd>
+                        <dt>Codice fiscale</dt><dd>@(dipendente.CodiceFiscale ?? "—")</dd>
+                        <dt>In servizio</dt>
+                        <dd class="mb-0">dal @Testo.Data(dipendente.DataAssunzione)@(dipendente.DataCessazione is { } c ? $" al {Testo.Data(c)}" : "")</dd>
+                    </dl>
+                </div>
+            </div>
+
+            @if (compenso is not null)
+            {
+                <div class="card border-primary">
+                    <div class="card-header">Compenso del periodo</div>
+                    <div class="card-body">
+                        <div class="fs-3 fw-semibold">@Testo.Euro(compenso.Totale)</div>
+                        <div class="text-body-secondary">@Testo.Ore(compenso.OreTotali) × @Testo.Euro(compenso.CompensoOrario)</div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                    <span class="me-auto">Turni</span>
+                    <input type="month" class="form-control form-control-sm w-auto" value="@mese.ToString("yyyy-MM")" @onchange="CambiaMese" />
+                </div>
+                <div class="card-body">
+                    <EditForm Model="nuovoTurno" OnValidSubmit="AggiungiTurno" class="row g-2 align-items-end mb-3">
+                        <div class="col-sm-4">
+                            <label class="form-label small">Inizio</label>
+                            <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="nuovoTurno.Inizio" />
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="form-label small">Fine</label>
+                            <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="nuovoTurno.Fine" />
+                        </div>
+                        <div class="col-sm-2">
+                            <InputText class="form-control" placeholder="Note" @bind-Value="nuovoTurno.Note" />
+                        </div>
+                        <div class="col-sm-2 d-grid">
+                            <button class="btn btn-primary" disabled="@Caricamento">Aggiungi</button>
+                        </div>
+                    </EditForm>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Giorno</th><th>Orario</th><th class="text-end">Ore</th><th>Note</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var t in turni)
+                                {
+                                    <tr>
+                                        <td class="text-capitalize">@t.Inizio.ToString("ddd dd/MM")</td>
+                                        <td>@t.Inizio.ToString("HH:mm") – @t.Fine.ToString("HH:mm")</td>
+                                        <td class="text-end">@Testo.Ore(t.Ore)</td>
+                                        <td>@t.Note</td>
+                                        <td class="text-end"><BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => EliminaTurno(t)" /></td>
+                                    </tr>
+                                }
+                                @if (turni.Count == 0)
+                                {
+                                    <tr><td colspan="5" class="text-body-secondary">Nessun turno nel mese selezionato.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<Finestra Visibile="modulo is not null" Titolo="Modifica dipendente" Grande OnChiudi="() => modulo = null">
+    @if (modulo is not null)
+    {
+        <ModuloDipendente Modello="modulo" Disabilitato="Caricamento" OnSalva="Salva" />
+    }
+</Finestra>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private DipendenteDto? dipendente;
+    private DipendenteInput? modulo;
+    private DateOnly mese = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private List<TurnoDto> turni = [];
+    private CompensoDto? compenso;
+    private TurnoInput nuovoTurno = new();
+
+    private DateOnly FineMese => mese.AddMonths(1).AddDays(-1);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await Esegui(async () => dipendente = await Api.Dipendente(Id));
+        await CaricaTurni();
+    }
+
+    private Task CaricaTurni() => Esegui(async () =>
+    {
+        turni = await Api.Turni(Id, mese, FineMese);
+        compenso = await Api.Compenso(Id, mese, FineMese);
+    });
+
+    private Task CambiaMese(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParseExact($"{e.Value}-01", "yyyy-MM-dd", out var m)) mese = m;
+        return CaricaTurni();
+    }
+
+    private async Task AggiungiTurno()
+    {
+        if (await Esegui(() => Api.AggiungiTurno(Id, nuovoTurno)))
+        {
+            // Propone lo stesso orario il giorno dopo, comodo per inserire una settimana.
+            nuovoTurno = new TurnoInput { Inizio = nuovoTurno.Inizio.AddDays(1), Fine = nuovoTurno.Fine.AddDays(1) };
+            await CaricaTurni();
+        }
+    }
+
+    private async Task EliminaTurno(TurnoDto t)
+    {
+        if (await Esegui(() => Api.EliminaTurno(Id, t.Id))) await CaricaTurni();
+    }
+
+    private async Task Salva()
+    {
+        if (await Esegui(async () => dipendente = await Api.ModificaDipendente(Id, modulo!), "Dati salvati."))
+        {
+            modulo = null;
+            await CaricaTurni();
+        }
+    }
+
+    private Task Cessa() => Esegui(async () =>
+    {
+        await Api.DisattivaDipendente(Id);
+        dipendente = await Api.Dipendente(Id);
+    }, "Rapporto cessato.");
+}

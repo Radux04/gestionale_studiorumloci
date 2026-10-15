@@ -1,4 +1,4 @@
-using StudiorumLoci.Api.Domain.Common;
+﻿using StudiorumLoci.Api.Domain.Common;
 using StudiorumLoci.Api.Domain.Crm;
 
 namespace StudiorumLoci.Api.Domain.Pagamenti;
@@ -20,7 +20,3 @@ public class Pagamento : Entity
 
     public bool Scaduto(DateOnly oggi) => Stato == StatoPagamento.DaPagare && Scadenza < oggi;
 }
-
-public enum StatoPagamento { DaPagare, Pagato, Annullato }
-
-public enum MetodoPagamento { Contanti, Bonifico, Carta, Pos, Satispay, Altro }

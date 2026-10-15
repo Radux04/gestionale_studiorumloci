@@ -1,0 +1,247 @@
+@page "/pagamenti"
+@inherits PaginaBase
+
+<PageTitle>Pagamenti · Studiorum Loci</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Pagamenti</h1>
+    <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuova quota</button>
+</div>
+
+<Avvisi Errore="@Errore" Conferma="@Conferma" />
+
+@if (riepilogo is not null)
+{
+    <div class="card mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center gap-4">
+            <input type="month" class="form-control w-auto" value="@meseRiepilogo.ToString("yyyy-MM")" @onchange="CambiaMeseRiepilogo" />
+            <div><div class="small text-body-secondary">Atteso</div><div class="fs-5 fw-semibold">@Testo.Euro(riepilogo.Atteso)</div></div>
+            <div><div class="small text-body-secondary">Incassato</div><div class="fs-5 fw-semibold text-success">@Testo.Euro(riepilogo.Incassato)</div></div>
+            <div><div class="small text-body-secondary">Da incassare</div><div class="fs-5 fw-semibold">@Testo.Euro(riepilogo.DaIncassare)</div></div>
+            <div><div class="small text-body-secondary">Scaduti</div><div class="fs-5 fw-semibold @(riepilogo.NumeroScaduti > 0 ? "text-danger" : "")">@riepilogo.NumeroScaduti</div></div>
+        </div>
+    </div>
+}
+
+<div class="row g-2 align-items-center mb-3">
+    <div class="col-sm-4 col-lg-3">
+        <select class="form-select" value="@(filtroStudente?.ToString() ?? "")" @onchange="CambiaStudente">
+            <option value="">Tutti gli studenti</option>
+            @foreach (var s in studenti) { <option value="@s.Id">@s.NomeCompleto</option> }
+        </select>
+    </div>
+    <div class="col-sm-4 col-lg-3">
+        <SelezioneEnum TEnum="StatoPagamento" Valore="filtroStato" ValoreChanged="CambiaStato" TestoTutti="Tutti gli stati" />
+    </div>
+    <div class="col-auto">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="scaduti" @bind="soloScaduti" @bind:after="Carica" />
+            <label class="form-check-label" for="scaduti">Solo scaduti</label>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Scadenza</th><th>Studente</th><th>Causale</th><th class="text-end">Importo</th><th>Stato</th><th>Incasso</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var p in pagamenti)
+            {
+                <tr class="@(p.Stato == StatoPagamento.Annullato ? "text-body-secondary text-decoration-line-through" : "")">
+                    <td>@Testo.Data(p.Scadenza)</td>
+                    <td>@p.Studente</td>
+                    <td>@p.Causale</td>
+                    <td class="text-end">@Testo.Euro(p.Importo)</td>
+                    <td><span class="badge @Testo.BadgePagamento(p)">@Testo.Stato(p)</span></td>
+                    <td>@(p.DataPagamento is { } d ? $"{Testo.Data(d)} · {Testo.Di(p.Metodo!.Value)}" : "")</td>
+                    <td class="text-end text-nowrap">
+                        @if (p.Stato == StatoPagamento.DaPagare)
+                        {
+                            <button class="btn btn-sm btn-success" @onclick="() => ApriIncasso(p)"><i class="bi bi-check-lg"></i> Incassa</button>
+                            <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(p)"><i class="bi bi-pencil"></i></button>
+                            <BottoneConferma Testo="Annulla quota" Icona="bi-x-lg" OnConferma="() => Annulla(p)" />
+                        }
+                    </td>
+                </tr>
+            }
+            @if (pagamenti.Count == 0 && !Caricamento)
+            {
+                <tr><td colspan="7" class="text-body-secondary">Nessun pagamento trovato.</td></tr>
+            }
+        </tbody>
+        @if (pagamenti.Count > 0)
+        {
+            <tfoot>
+                <tr class="fw-semibold">
+                    <td colspan="3">Totale (esclusi annullati)</td>
+                    <td class="text-end">@Testo.Euro(pagamenti.Where(p => p.Stato != StatoPagamento.Annullato).Sum(p => p.Importo))</td>
+                    <td colspan="3"></td>
+                </tr>
+            </tfoot>
+        }
+    </table>
+</div>
+
+<Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuova quota" : "Modifica quota")" OnChiudi="() => modulo = null">
+    @if (modulo is not null)
+    {
+        <EditForm Model="modulo" OnValidSubmit="Salva">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Studente</label>
+                <InputSelect class="form-select" @bind-Value="modulo.StudenteId">
+                    <option value="0">— seleziona —</option>
+                    @foreach (var s in studenti.Where(s => s.Attivo || s.Id == modulo.StudenteId))
+                    {
+                        <option value="@s.Id">@s.NomeCompleto</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => modulo.StudenteId" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Causale</label>
+                <InputText class="form-control" placeholder="es. Retta ottobre 2026" @bind-Value="modulo.Causale" />
+                <ValidationMessage For="() => modulo.Causale" />
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="form-label">Importo (€)</label>
+                    <InputNumber class="form-control" step="0.01" @bind-Value="modulo.Importo" />
+                    <ValidationMessage For="() => modulo.Importo" />
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Scadenza</label>
+                    <InputDate class="form-control" @bind-Value="modulo.Scadenza" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Note</label>
+                <InputTextArea class="form-control" rows="2" @bind-Value="modulo.Note" />
+            </div>
+            <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
+        </EditForm>
+    }
+</Finestra>
+
+<Finestra Visibile="daIncassare is not null" Titolo="Registra incasso" OnChiudi="() => daIncassare = null">
+    @if (daIncassare is not null)
+    {
+        <p><strong>@daIncassare.Studente</strong> · @daIncassare.Causale · <strong>@Testo.Euro(daIncassare.Importo)</strong></p>
+        <EditForm Model="incasso" OnValidSubmit="Incassa">
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <label class="form-label">Metodo</label>
+                    <InputSelect class="form-select" @bind-Value="incasso.Metodo">
+                        @foreach (var m in Enum.GetValues<MetodoPagamento>()) { <option value="@m">@Testo.Di(m)</option> }
+                    </InputSelect>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Data incasso</label>
+                    <InputDate class="form-control" @bind-Value="incasso.DataPagamento" />
+                </div>
+            </div>
+            <button class="btn btn-success" disabled="@Caricamento"><i class="bi bi-check-lg"></i> Conferma incasso</button>
+        </EditForm>
+    }
+</Finestra>
+
+@code {
+    [SupplyParameterFromQuery] public int? StudenteId { get; set; }
+    [SupplyParameterFromQuery] public bool? Scaduti { get; set; }
+
+    private List<PagamentoDto> pagamenti = [];
+    private List<StudenteDto> studenti = [];
+    private int? filtroStudente;
+    private StatoPagamento? filtroStato;
+    private bool soloScaduti;
+
+    private DateOnly meseRiepilogo = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private RiepilogoPagamentiDto? riepilogo;
+
+    private PagamentoInput? modulo;
+    private int? idInModifica;
+
+    private PagamentoDto? daIncassare;
+    private RegistraIncassoInput incasso = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        filtroStudente = StudenteId;
+        soloScaduti = Scaduti ?? false;
+        await Esegui(async () => studenti = await Api.Studenti(soloAttivi: false));
+        await Carica();
+    }
+
+    private async Task Carica()
+    {
+        await Esegui(async () => pagamenti = await Api.Pagamenti(filtroStudente, filtroStato, soloScaduti));
+        await CaricaRiepilogo();
+    }
+
+    private Task CaricaRiepilogo() =>
+        Esegui(async () => riepilogo = await Api.Riepilogo(meseRiepilogo.Year, meseRiepilogo.Month));
+
+    private Task CambiaMeseRiepilogo(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParseExact($"{e.Value}-01", "yyyy-MM-dd", out var m)) meseRiepilogo = m;
+        return CaricaRiepilogo();
+    }
+
+    private Task CambiaStudente(ChangeEventArgs e)
+    {
+        filtroStudente = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        return Carica();
+    }
+
+    private Task CambiaStato(StatoPagamento? stato)
+    {
+        filtroStato = stato;
+        return Carica();
+    }
+
+    private void ApriNuovo()
+    {
+        idInModifica = null;
+        modulo = new PagamentoInput { StudenteId = filtroStudente ?? 0 };
+    }
+
+    private void ApriModifica(PagamentoDto p)
+    {
+        idInModifica = p.Id;
+        modulo = PagamentoInput.Da(p);
+    }
+
+    private async Task Salva()
+    {
+        if (await Esegui(() => idInModifica is { } id ? Api.ModificaPagamento(id, modulo!) : Api.CreaPagamento(modulo!)))
+        {
+            modulo = null;
+            await Carica();
+            Conferma = "Quota salvata.";
+        }
+    }
+
+    private void ApriIncasso(PagamentoDto p)
+    {
+        daIncassare = p;
+        incasso = new RegistraIncassoInput { DataPagamento = DateOnly.FromDateTime(DateTime.Today) };
+    }
+
+    private async Task Incassa()
+    {
+        var p = daIncassare!;
+        if (await Esegui(() => Api.RegistraIncasso(p.Id, incasso)))
+        {
+            daIncassare = null;
+            await Carica();
+            Conferma = $"Incassati {Testo.Euro(p.Importo)} da {p.Studente}.";
+        }
+    }
+
+    private async Task Annulla(PagamentoDto p)
+    {
+        if (await Esegui(() => Api.AnnullaPagamento(p.Id))) await Carica();
+    }
+}

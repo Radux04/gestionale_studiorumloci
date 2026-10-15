@@ -1,0 +1,195 @@
+@page "/crm/genitori"
+@inherits PaginaBase
+
+<PageTitle>Genitori · Studiorum Loci</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Genitori</h1>
+    <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo genitore</button>
+</div>
+
+<Avvisi Errore="@Errore" Conferma="@Conferma" />
+
+<div class="row g-2 mb-3">
+    <div class="col-sm-6 col-lg-4">
+        <input class="form-control" type="search" placeholder="Cerca per nome, cognome o email" @bind="cerca" @bind:event="oninput" @bind:after="Carica" />
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Genitore</th><th>Contatti</th><th>Figli</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var g in genitori)
+            {
+                <tr>
+                    <td>@g.NomeCompleto</td>
+                    <td>
+                        @if (g.Email is not null) { <div><i class="bi bi-envelope"></i> @g.Email</div> }
+                        @if (g.Telefono is not null) { <div><i class="bi bi-telephone"></i> @g.Telefono</div> }
+                    </td>
+                    <td>@string.Join(", ", g.StudentiIds.Select(NomeStudente))</td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-sm btn-outline-secondary" title="Storico contatti" @onclick="() => ApriStorico(g)"><i class="bi bi-chat-left-text"></i></button>
+                        <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(g)"><i class="bi bi-pencil"></i></button>
+                        <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => Elimina(g)" />
+                    </td>
+                </tr>
+            }
+            @if (genitori.Count == 0 && !Caricamento)
+            {
+                <tr><td colspan="4" class="text-body-secondary">Nessun genitore trovato.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuovo genitore" : "Modifica genitore")" Grande OnChiudi="() => modulo = null">
+    @if (modulo is not null)
+    {
+        <EditForm Model="modulo" OnValidSubmit="Salva">
+            <DataAnnotationsValidator />
+            <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label">Nome</label>
+                    <InputText class="form-control" @bind-Value="modulo.Nome" />
+                    <ValidationMessage For="() => modulo.Nome" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label">Cognome</label>
+                    <InputText class="form-control" @bind-Value="modulo.Cognome" />
+                    <ValidationMessage For="() => modulo.Cognome" />
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label">Email</label>
+                    <InputText class="form-control" type="email" @bind-Value="modulo.Email" />
+                    <ValidationMessage For="() => modulo.Email" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label">Telefono</label>
+                    <InputText class="form-control" type="tel" @bind-Value="modulo.Telefono" />
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-5">
+                    <label class="form-label">Codice fiscale</label>
+                    <InputText class="form-control text-uppercase" maxlength="16" @bind-Value="modulo.CodiceFiscale" />
+                    <ValidationMessage For="() => modulo.CodiceFiscale" />
+                </div>
+                <div class="col-sm-7">
+                    <label class="form-label">Indirizzo</label>
+                    <InputText class="form-control" @bind-Value="modulo.Indirizzo" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Note</label>
+                <InputTextArea class="form-control" rows="2" @bind-Value="modulo.Note" />
+            </div>
+            <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
+        </EditForm>
+    }
+</Finestra>
+
+<Finestra Visibile="storicoDi is not null" Titolo="@($"Storico contatti · {storicoDi?.NomeCompleto}")" Grande OnChiudi="() => storicoDi = null">
+    @if (storicoDi is not null)
+    {
+        <ul class="list-group mb-3">
+            @foreach (var i in interazioni)
+            {
+                <li class="list-group-item">
+                    <div class="small text-body-secondary">@Testo.DataOra(i.Data) · @Testo.Di(i.Tipo)</div>
+                    @i.Descrizione
+                </li>
+            }
+            @if (interazioni.Count == 0) { <li class="list-group-item text-body-secondary">Nessun contatto registrato.</li> }
+        </ul>
+        <EditForm Model="nuovaInterazione" OnValidSubmit="AggiungiInterazione" class="row g-2">
+            <DataAnnotationsValidator />
+            <div class="col-sm-3">
+                <InputSelect class="form-select" @bind-Value="nuovaInterazione.Tipo">
+                    @foreach (var t in Enum.GetValues<TipoInterazione>()) { <option value="@t">@Testo.Di(t)</option> }
+                </InputSelect>
+            </div>
+            <div class="col-sm-7">
+                <InputText class="form-control" placeholder="Es. colloquio con l'insegnante, sollecito retta" @bind-Value="nuovaInterazione.Descrizione" />
+                <ValidationMessage For="() => nuovaInterazione.Descrizione" />
+            </div>
+            <div class="col-sm-2 d-grid">
+                <button class="btn btn-outline-primary" disabled="@Caricamento">Aggiungi</button>
+            </div>
+        </EditForm>
+    }
+</Finestra>
+
+@code {
+    private List<GenitoreDto> genitori = [];
+    private List<StudenteDto> studenti = [];
+    private string? cerca;
+
+    private GenitoreInput? modulo;
+    private int? idInModifica;
+
+    private GenitoreDto? storicoDi;
+    private List<InterazioneDto> interazioni = [];
+    private InterazioneInput nuovaInterazione = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Esegui(async () => studenti = await Api.Studenti(soloAttivi: false));
+        await Carica();
+    }
+
+    private Task Carica() => Esegui(async () => genitori = await Api.Genitori(cerca));
+
+    private string NomeStudente(int id) => studenti.FirstOrDefault(s => s.Id == id)?.Nome ?? $"#{id}";
+
+    private void ApriNuovo()
+    {
+        idInModifica = null;
+        modulo = new GenitoreInput();
+    }
+
+    private void ApriModifica(GenitoreDto g)
+    {
+        idInModifica = g.Id;
+        modulo = GenitoreInput.Da(g);
+    }
+
+    private async Task Salva()
+    {
+        var ok = await Esegui(() => idInModifica is { } id ? Api.ModificaGenitore(id, modulo!) : Api.CreaGenitore(modulo!));
+        if (ok)
+        {
+            var nome = $"{modulo!.Nome} {modulo.Cognome}";
+            modulo = null;
+            await Carica();
+            Conferma = $"{nome} salvato.";
+        }
+    }
+
+    private async Task Elimina(GenitoreDto g)
+    {
+        if (await Esegui(() => Api.EliminaGenitore(g.Id))) await Carica();
+    }
+
+    private async Task ApriStorico(GenitoreDto g)
+    {
+        storicoDi = g;
+        nuovaInterazione = new();
+        await Esegui(async () => interazioni = await Api.InterazioniGenitore(g.Id));
+    }
+
+    private async Task AggiungiInterazione()
+    {
+        var id = storicoDi!.Id;
+        if (await Esegui(() => Api.AggiungiInterazioneGenitore(id, nuovaInterazione)))
+        {
+            nuovaInterazione = new();
+            await Esegui(async () => interazioni = await Api.InterazioniGenitore(id));
+        }
+    }
+}

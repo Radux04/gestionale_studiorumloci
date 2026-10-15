@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/StudiorumLoci.Api/StudiorumLoci.Api.csproj" />
+    <Project Path="src/StudiorumLoci.Shared/StudiorumLoci.Shared.csproj" />
+    <Project Path="src/StudiorumLoci.Web/StudiorumLoci.Web.csproj" />
   </Folder>
 </Solution>

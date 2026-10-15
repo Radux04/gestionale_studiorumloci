@@ -16,5 +16,13 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Using Include="StudiorumLoci.Shared" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\StudiorumLoci.Shared\StudiorumLoci.Shared.csproj" />
+  </ItemGroup>
 
 </Project>

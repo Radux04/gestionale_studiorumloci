@@ -1,4 +1,4 @@
-using StudiorumLoci.Api.Domain.Common;
+﻿using StudiorumLoci.Api.Domain.Common;
 
 namespace StudiorumLoci.Api.Domain.Crm;
 
@@ -18,7 +18,3 @@ public class Lead : Entity
 
     public List<Interazione> Interazioni { get; set; } = [];
 }
-
-public enum FonteLead { Sito, Telefono, Passaparola, Social, Altro }
-
-public enum StatoLead { Nuovo, Contattato, Convertito, Perso }

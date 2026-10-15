@@ -1,0 +1,114 @@
+﻿@page "/"
+@inherits PaginaBase
+
+<PageTitle>Panoramica · Studiorum Loci</PageTitle>
+
+<h1 class="mb-4">Panoramica</h1>
+
+<Avvisi Errore="@Errore" />
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <a href="crm/lead" class="card text-decoration-none h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small">Nuove richieste</div>
+                <div class="fs-2 fw-semibold">@leadNuovi.Count</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="crm/studenti" class="card text-decoration-none h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small">Studenti attivi</div>
+                <div class="fs-2 fw-semibold">@studentiAttivi</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="dipendenti" class="card text-decoration-none h-100">
+            <div class="card-body">
+                <div class="text-body-secondary small">Dipendenti attivi</div>
+                <div class="fs-2 fw-semibold">@dipendentiAttivi</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a href="pagamenti?scaduti=true" class="card text-decoration-none h-100 @(scaduti.Count > 0 ? "border-danger" : "")">
+            <div class="card-body">
+                <div class="text-body-secondary small">Rette scadute</div>
+                <div class="fs-2 fw-semibold @(scaduti.Count > 0 ? "text-danger" : "")">@scaduti.Count</div>
+                @if (scaduti.Count > 0)
+                {
+                    <div class="small text-danger">@Testo.Euro(scaduti.Sum(p => p.Importo)) da recuperare</div>
+                }
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header">Incassi di @oggi.ToString("MMMM yyyy")</div>
+            <div class="card-body">
+                @if (riepilogo is not null)
+                {
+                    var percentuale = riepilogo.Atteso == 0 ? 0 : (int)(riepilogo.Incassato / riepilogo.Atteso * 100);
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Incassato <strong>@Testo.Euro(riepilogo.Incassato)</strong></span>
+                        <span class="text-body-secondary">su @Testo.Euro(riepilogo.Atteso)</span>
+                    </div>
+                    <div class="progress mb-3" role="progressbar" aria-valuenow="@percentuale" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar bg-success" style="width: @percentuale%"></div>
+                    </div>
+                    <div>Da incassare: <strong>@Testo.Euro(riepilogo.DaIncassare)</strong></div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between">
+                <span>Ultime richieste dal sito</span>
+                <a href="crm/lead">Vedi tutte</a>
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var l in leadNuovi.Take(5))
+                {
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span><strong>@l.Nome</strong> <span class="text-body-secondary">@(l.Email ?? l.Telefono)</span></span>
+                        <span class="text-body-secondary small">@Testo.DataOra(l.CreatoIl)</span>
+                    </li>
+                }
+                @if (leadNuovi.Count == 0)
+                {
+                    <li class="list-group-item text-body-secondary">Nessuna nuova richiesta.</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly DateOnly oggi = DateOnly.FromDateTime(DateTime.Today);
+    private List<LeadDto> leadNuovi = [];
+    private List<PagamentoDto> scaduti = [];
+    private int studentiAttivi;
+    private int dipendentiAttivi;
+    private RiepilogoPagamentiDto? riepilogo;
+
+    protected override Task OnInitializedAsync() => Esegui(async () =>
+    {
+        var lead = Api.Lead(StatoLead.Nuovo);
+        var studenti = Api.Studenti();
+        var dipendenti = Api.Dipendenti();
+        var pagamenti = Api.Pagamenti(soloScaduti: true);
+        var mese = Api.Riepilogo(oggi.Year, oggi.Month);
+
+        leadNuovi = await lead;
+        studentiAttivi = (await studenti).Count;
+        dipendentiAttivi = (await dipendenti).Count;
+        scaduti = await pagamenti;
+        riepilogo = await mese;
+    });
+}

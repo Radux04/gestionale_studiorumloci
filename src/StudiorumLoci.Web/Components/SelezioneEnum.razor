@@ -1,0 +1,19 @@
+@typeparam TEnum where TEnum : struct, Enum
+@* Select per i filtri: "Tutti" (null) oppure uno dei valori dell'enum. *@
+
+<select class="form-select" value="@(Valore?.ToString() ?? "")" @onchange="Cambia">
+    <option value="">@TestoTutti</option>
+    @foreach (var v in Enum.GetValues<TEnum>())
+    {
+        <option value="@v">@Services.Testo.Di(v)</option>
+    }
+</select>
+
+@code {
+    [Parameter] public TEnum? Valore { get; set; }
+    [Parameter] public EventCallback<TEnum?> ValoreChanged { get; set; }
+    [Parameter] public string TestoTutti { get; set; } = "Tutti";
+
+    private Task Cambia(ChangeEventArgs e) =>
+        ValoreChanged.InvokeAsync(Enum.TryParse<TEnum>(e.Value?.ToString(), out var v) ? v : null);
+}
