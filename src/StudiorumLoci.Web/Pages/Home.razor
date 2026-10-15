@@ -113,11 +113,21 @@
     private int dipendentiAttivi;
     private RiepilogoPagamentiDto? riepilogo;
 
-    protected override async Task OnInitializedAsync() =>
+    [Inject] private Sessione Sessione { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Il professore non ha una panoramica: la sua pagina iniziale è la propria scheda.
+        if (!Sessione.PuoGestire)
+        {
+            Navigazione.NavigateTo(Sessione.Utente?.DipendenteId is { } id ? $"dipendenti/{id}" : "crm/studenti", replace: true);
+            return;
+        }
         await Esegui(async () => sedi = await Api.Sedi());
+    }
 
     // Si riesegue a ogni cambio di ?sedeId.
-    protected override Task OnParametersSetAsync() => Esegui(async () =>
+    protected override Task OnParametersSetAsync() => !Sessione.PuoGestire ? Task.CompletedTask : Esegui(async () =>
     {
         var lead = Api.Lead(StatoLead.Nuovo);
         var studenti = Api.Studenti(sedeId: SedeId);

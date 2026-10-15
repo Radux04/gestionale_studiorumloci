@@ -3,29 +3,38 @@
 
 <PageTitle>@(dipendente?.NomeCompleto ?? "Dipendente") · Studiorum Loci</PageTitle>
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="dipendenti">Dipendenti</a></li>
-        <li class="breadcrumb-item active">@dipendente?.NomeCompleto</li>
-    </ol>
-</nav>
+@if (gestione)
+{
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="dipendenti">Dipendenti</a></li>
+            <li class="breadcrumb-item active">@dipendente?.NomeCompleto</li>
+        </ol>
+    </nav>
+}
 
-<Avvisi Errore="@Errore" Conferma="@Conferma" />
+<Avvisi Errore="@(modulo is null && turnoInModifica is null ? Errore : null)" Conferma="@Conferma" />
 
 @if (dipendente is not null)
 {
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="mb-0">
-            @dipendente.NomeCompleto
+            @(gestione ? dipendente.NomeCompleto : "I miei turni")
             @if (!dipendente.Attivo) { <span class="badge text-bg-secondary fs-6 align-middle">Cessato</span> }
         </h1>
         <div class="d-flex gap-2">
-            <button class="btn btn-outline-primary" @onclick="() => modulo = DipendenteInput.Da(dipendente)"><i class="bi bi-pencil"></i> Modifica</button>
-            @if (dipendente.Attivo)
+            @if (gestione)
             {
-                <BottoneConferma Testo="Cessa rapporto" Classe="btn-outline-secondary" OnConferma="Cessa" />
+                <button class="btn btn-outline-primary" @onclick="ApriModifica"><i class="bi bi-pencil"></i> Modifica</button>
             }
-            <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="Elimina" />
+            @if (amministrazione && !seStesso)
+            {
+                @if (dipendente.Attivo)
+                {
+                    <BottoneConferma Testo="Cessa rapporto (blocca anche l'accesso)" Classe="btn-outline-secondary" OnConferma="Cessa" />
+                }
+                <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="Elimina" />
+            }
         </div>
     </div>
 
@@ -35,7 +44,7 @@
                 <div class="card-header">Anagrafica</div>
                 <div class="card-body">
                     <dl class="mb-0">
-                        <dt>Ruolo</dt><dd>@Testo.Di(dipendente.Ruolo) · @Testo.Di(dipendente.Contratto)</dd>
+                        <dt>Mansione</dt><dd>@Testo.Di(dipendente.Ruolo) · @Testo.Di(dipendente.Contratto)</dd>
                         <dt>Compenso</dt><dd>@Testo.Euro(dipendente.CompensoOrario) / ora</dd>
                         <dt>Materie</dt><dd>@(dipendente.Materie ?? "—")</dd>
                         <dt>Contatti</dt><dd>@(dipendente.Email ?? "—")<br />@dipendente.Telefono</dd>
@@ -53,6 +62,63 @@
                     </dl>
                 </div>
             </div>
+
+            @if (amministrazione && !seStesso)
+            {
+                <div class="card mb-3">
+                    <div class="card-header">Accesso al gestionale</div>
+                    <div class="card-body">
+                        @if (dipendente.Accesso is null)
+                        {
+                            <p class="small text-body-secondary">Non ha ancora un accesso.</p>
+                        }
+                        else
+                        {
+                            <div class="mb-2">
+                                <BadgeAccesso Accesso="dipendente.Accesso" />
+                                <span class="small text-body-secondary ms-1">
+                                    @(dipendente.Accesso.UltimoAccesso is { } ua ? $"ultimo accesso {Testo.DataOra(ua)}" : "mai entrato")
+                                </span>
+                            </div>
+                        }
+                        @if (dipendente.Accesso is null || modificabile)
+                        {
+                            <EditForm Model="accesso" OnValidSubmit="SalvaAccesso">
+                                <DataAnnotationsValidator />
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">Email di accesso</label>
+                                    <InputText class="form-control form-control-sm" type="email" autocomplete="off" @bind-Value="accesso.Email" />
+                                    <ValidationMessage For="() => accesso.Email" />
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">Ruolo</label>
+                                    <InputSelect class="form-select form-select-sm" @bind-Value="accesso.Ruolo">
+                                        <option value="@RuoloAccesso.Professore">Professore</option>
+                                        <option value="@RuoloAccesso.Manager">Manager</option>
+                                    </InputSelect>
+                                </div>
+                                <button class="btn btn-sm btn-primary w-100" disabled="@Caricamento">
+                                    @(dipendente.Accesso is null ? "Crea accesso" : "Salva email e ruolo")
+                                </button>
+                            </EditForm>
+                            @if (dipendente.Accesso is { } a)
+                            {
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <BottoneConferma Testo="Reimposta password" Classe="btn-outline-secondary" OnConferma="ReimpostaPassword" />
+                                    @if (a.Attivo)
+                                    {
+                                        <BottoneConferma Testo="Blocca accesso" Classe="btn-outline-danger" OnConferma="() => CambiaStatoAccesso(false)" />
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success" @onclick="() => CambiaStatoAccesso(true)">Sblocca accesso</button>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
 
             @if (compenso is not null)
             {
@@ -73,6 +139,8 @@
                     <input type="month" class="form-control form-control-sm w-auto" value="@mese.ToString("yyyy-MM")" @onchange="CambiaMese" />
                 </div>
                 <div class="card-body">
+                    @if (gestione)
+                    {
                     <EditForm Model="nuovoTurno" OnValidSubmit="AggiungiTurno" class="row g-2 align-items-end mb-3">
                         <div class="col-sm-4">
                             <label class="form-label small">Inizio</label>
@@ -89,6 +157,7 @@
                             <button class="btn btn-primary" disabled="@Caricamento">Aggiungi</button>
                         </div>
                     </EditForm>
+                    }
 
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0">
@@ -102,8 +171,11 @@
                                         <td class="text-end">@Testo.Ore(t.Ore)</td>
                                         <td>@t.Note</td>
                                         <td class="text-end text-nowrap">
-                                            <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriTurno(t)"><i class="bi bi-pencil"></i></button>
-                                            <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => EliminaTurno(t)" />
+                                            @if (gestione)
+                                            {
+                                                <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriTurno(t)"><i class="bi bi-pencil"></i></button>
+                                                <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => EliminaTurno(t)" />
+                                            }
                                         </td>
                                     </tr>
                                 }
@@ -152,9 +224,21 @@
     }
 </Finestra>
 
+<PasswordTemporanea Dati="credenziali" OnChiudi="() => credenziali = null" />
+
 @code {
     [Parameter] public int Id { get; set; }
     [Inject] private NavigationManager Navigazione { get; set; } = null!;
+    [Inject] private Sessione Sessione { get; set; } = null!;
+
+    private bool gestione => Sessione.PuoGestire;
+    private bool amministrazione => Sessione.PuoAmministrare;
+    private bool seStesso => Sessione.Utente?.DipendenteId == Id;
+    /// <summary>L'admin gestisce solo accessi da manager/professore (il superadmin tutti).</summary>
+    private bool modificabile => dipendente?.Accesso is { } a && Ruoli.Assegnabili(Sessione.Utente!.Ruolo).Contains(a.Ruolo);
+
+    private UtenteInput accesso = new();
+    private PasswordTemporaneaDto? credenziali;
 
     private DipendenteDto? dipendente;
     private List<SedeDto> sedi = [];
@@ -175,8 +259,47 @@
             dipendente = await Api.Dipendente(Id);
             sedi = await Api.Sedi();
         });
+        PreparaAccesso();
         await CaricaTurni();
     }
+
+    private void PreparaAccesso() => accesso = dipendente?.Accesso is { } a
+        ? new UtenteInput { Email = a.Email, Ruolo = a.Ruolo, Attivo = a.Attivo, DipendenteId = Id }
+        : new UtenteInput { Email = dipendente?.Email ?? "", Ruolo = RuoloAccesso.Professore, DipendenteId = Id };
+
+    private void ApriModifica()
+    {
+        Errore = null;
+        modulo = DipendenteInput.Da(dipendente!);
+    }
+
+    private async Task SalvaAccesso()
+    {
+        await Esegui(async () =>
+        {
+            if (dipendente!.Accesso is { } a) await Api.ModificaUtente(a.UtenteId, accesso);
+            else credenziali = await Api.CreaUtente(accesso);
+            dipendente = await Api.Dipendente(Id);
+        }, dipendente!.Accesso is null ? "Accesso creato." : "Accesso aggiornato.");
+        PreparaAccesso();
+    }
+
+    private async Task CambiaStatoAccesso(bool attivo)
+    {
+        accesso.Attivo = attivo;
+        await Esegui(async () =>
+        {
+            await Api.ModificaUtente(dipendente!.Accesso!.UtenteId, accesso);
+            dipendente = await Api.Dipendente(Id);
+        }, attivo ? "Accesso sbloccato." : "Accesso bloccato: la persona è stata disconnessa.");
+        PreparaAccesso();
+    }
+
+    private Task ReimpostaPassword() => Esegui(async () =>
+    {
+        credenziali = await Api.ReimpostaPassword(dipendente!.Accesso!.UtenteId);
+        dipendente = await Api.Dipendente(Id);
+    });
 
     private Task CaricaTurni() => Esegui(async () =>
     {

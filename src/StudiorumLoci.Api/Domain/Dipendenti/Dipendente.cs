@@ -1,4 +1,5 @@
-﻿using StudiorumLoci.Api.Domain.Common;
+﻿using StudiorumLoci.Api.Domain.Accessi;
+using StudiorumLoci.Api.Domain.Common;
 using StudiorumLoci.Api.Domain.Sedi;
 
 namespace StudiorumLoci.Api.Domain.Dipendenti;
@@ -24,4 +25,7 @@ public class Dipendente : Entity
 
     /// <summary>Sedi in cui lavora (anche più d'una).</summary>
     public List<Sede> Sedi { get; set; } = [];
+
+    /// <summary>Accesso al gestionale (null per i dipendenti creati prima del login).</summary>
+    public Utente? Utente { get; set; }
 }

@@ -29,6 +29,10 @@
         <a href="." class="reload">Ricarica</a>
         <span class="dismiss">✕</span>
     </div>
+    <script>
+        // Crea un indirizzo temporaneo (blob:) per mostrare un file scaricato con il token (es. ricevute).
+        window.creaUrlFile = (byte, tipo) => URL.createObjectURL(new Blob([byte], { type: tipo }));
+    </script>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
 </body>
 

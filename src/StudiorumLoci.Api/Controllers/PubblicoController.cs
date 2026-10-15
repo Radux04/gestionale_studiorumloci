@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using StudiorumLoci.Api.Contracts;
@@ -8,10 +9,11 @@ namespace StudiorumLoci.Api.Controllers;
 
 /// <summary>
 /// Endpoint esposti al sito pubblico (studiorum-loci.vercel.app).
-/// Restano accessibili senza login anche quando verrà aggiunta l'autenticazione al resto dell'API.
+/// Sono gli unici endpoint accessibili senza login.
 /// </summary>
 [ApiController]
 [Route("api/pubblico")]
+[AllowAnonymous]
 [EnableRateLimiting(RateLimitPolicies.Pubblico)]
 public class PubblicoController(AppDbContext db) : ControllerBase
 {

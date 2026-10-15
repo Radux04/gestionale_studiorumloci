@@ -17,6 +17,17 @@ public class ApiClient(HttpClient http)
         Converters = { new JsonStringEnumConverter() },
     };
 
+    // ---- Accesso ----
+    public Task<LoginDto> Login(LoginInput l) => Send<LoginDto>(HttpMethod.Post, "api/auth/login", l);
+    public Task<LoginDto> CambiaPassword(CambiaPasswordInput c) => Send<LoginDto>(HttpMethod.Post, "api/auth/cambia-password", c);
+
+    // ---- Account (amministrazione) ----
+    public Task<List<UtenteDto>> Utenti() => Get<List<UtenteDto>>("api/utenti");
+    public Task<PasswordTemporaneaDto> CreaUtente(UtenteInput u) => Send<PasswordTemporaneaDto>(HttpMethod.Post, "api/utenti", u);
+    public Task<UtenteDto> ModificaUtente(int id, UtenteInput u) => Send<UtenteDto>(HttpMethod.Put, $"api/utenti/{id}", u);
+    public Task<PasswordTemporaneaDto> ReimpostaPassword(int id) => Send<PasswordTemporaneaDto>(HttpMethod.Post, $"api/utenti/{id}/reimposta-password");
+    public Task EliminaUtente(int id) => Send(HttpMethod.Delete, $"api/utenti/{id}");
+
     // ---- Sedi ----
     public Task<List<SedeDto>> Sedi(string? regione = null, bool soloAttive = false) =>
         Get<List<SedeDto>>($"api/sedi?soloAttive={soloAttive}&regione={Uri.EscapeDataString(regione ?? "")}");
@@ -65,7 +76,7 @@ public class ApiClient(HttpClient http)
     public Task<List<DipendenteDto>> Dipendenti(RuoloDipendente? ruolo = null, bool soloAttivi = true, int? sedeId = null) =>
         Get<List<DipendenteDto>>($"api/dipendenti?soloAttivi={soloAttivi}&ruolo={ruolo}&sedeId={sedeId}");
     public Task<DipendenteDto> Dipendente(int id) => Get<DipendenteDto>($"api/dipendenti/{id}");
-    public Task<DipendenteDto> CreaDipendente(DipendenteInput d) => Send<DipendenteDto>(HttpMethod.Post, "api/dipendenti", d);
+    public Task<DipendenteCreatoDto> CreaDipendente(NuovoDipendenteInput d) => Send<DipendenteCreatoDto>(HttpMethod.Post, "api/dipendenti", d);
     public Task<DipendenteDto> ModificaDipendente(int id, DipendenteInput d) => Send<DipendenteDto>(HttpMethod.Put, $"api/dipendenti/{id}", d);
     public Task CessaDipendente(int id) => Send(HttpMethod.Post, $"api/dipendenti/{id}/cessa");
     public Task EliminaDipendente(int id) => Send(HttpMethod.Delete, $"api/dipendenti/{id}");
@@ -102,8 +113,12 @@ public class ApiClient(HttpClient http)
         return await CaricaRicevuta(id, contenuto, file.Name, file.ContentType);
     }
     public Task<PagamentoDto> EliminaRicevuta(int id) => Send<PagamentoDto>(HttpMethod.Delete, $"api/pagamenti/{id}/ricevuta");
-    /// <summary>Indirizzo diretto della ricevuta, da aprire in una nuova scheda.</summary>
-    public string UrlRicevuta(int id) => new Uri(http.BaseAddress!, $"api/pagamenti/{id}/ricevuta").ToString();
+    /// <summary>Contenuto della ricevuta (la richiesta porta il token, quindi non si può usare un semplice link).</summary>
+    public async Task<byte[]> ScaricaRicevuta(int id)
+    {
+        using var risposta = await Invia(HttpMethod.Get, $"api/pagamenti/{id}/ricevuta", null);
+        return await risposta.Content.ReadAsByteArrayAsync();
+    }
     public Task<RiepilogoPagamentiDto> Riepilogo(int anno, int mese, int? sedeId = null) =>
         Get<RiepilogoPagamentiDto>($"api/pagamenti/riepilogo?anno={anno}&mese={mese}&sedeId={sedeId}");
 

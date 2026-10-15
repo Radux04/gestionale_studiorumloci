@@ -1,0 +1,91 @@
+@page "/login"
+@layout LayoutAccesso
+@attribute [AllowAnonymous]
+@inject ApiClient Api
+@inject Sessione Sessione
+@inject NavigationManager Navigazione
+
+<PageTitle>Accedi · Studiorum Loci</PageTitle>
+
+<h1 class="h5 mb-3">Accedi</h1>
+
+@if (Scaduta == 1)
+{
+    <div class="alert alert-warning py-2 small">La sessione è scaduta: accedi di nuovo.</div>
+}
+@if (errore is not null)
+{
+    <div class="alert alert-danger py-2 small" role="alert">@errore</div>
+}
+
+<EditForm Model="modulo" OnValidSubmit="Accedi" FormName="login">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label class="form-label" for="email">Email</label>
+        <InputText id="email" class="form-control" type="email" autocomplete="username" @bind-Value="modulo.Email" />
+        <ValidationMessage For="() => modulo.Email" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="password">Password</label>
+        <div class="input-group">
+            <InputText id="password" class="form-control" type="@(mostra ? "text" : "password")" autocomplete="current-password" @bind-Value="modulo.Password" />
+            <button type="button" class="btn btn-outline-secondary" title="@(mostra ? "Nascondi" : "Mostra") password" @onclick="() => mostra = !mostra">
+                <i class="bi @(mostra ? "bi-eye-slash" : "bi-eye")"></i>
+            </button>
+        </div>
+        <ValidationMessage For="() => modulo.Password" />
+    </div>
+    <button class="btn btn-primary w-100" disabled="@inCorso">
+        @if (inCorso) { <span class="spinner-border spinner-border-sm me-1"></span> }
+        Accedi
+    </button>
+</EditForm>
+
+<p class="small text-body-secondary mt-3 mb-0">Password dimenticata? Chiedi all'amministratore di reimpostarla.</p>
+
+@code {
+    [SupplyParameterFromQuery] public string? Torna { get; set; }
+    [SupplyParameterFromQuery] public int? Scaduta { get; set; }
+
+    private readonly LoginInput modulo = new();
+    private bool inCorso;
+    private bool mostra;
+    private string? errore;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Se c'è ancora una sessione valida non serve rifare il login.
+        await Sessione.GetAuthenticationStateAsync();
+        if (Sessione.Valida && Scaduta is null) Prosegui();
+    }
+
+    private async Task Accedi()
+    {
+        inCorso = true;
+        errore = null;
+        try
+        {
+            await Sessione.Esci();
+            await Sessione.Accedi(await Api.Login(modulo));
+            Prosegui();
+        }
+        catch (ApiException ex)
+        {
+            errore = ex.Message;
+            modulo.Password = "";
+        }
+        finally
+        {
+            inCorso = false;
+        }
+    }
+
+    private void Prosegui()
+    {
+        if (Sessione.Utente!.DeveCambiarePassword) Navigazione.NavigateTo("cambia-password");
+        // Solo percorsi interni: evita di essere rimandati a siti esterni con un link manipolato.
+        else if (!string.IsNullOrEmpty(Torna) && !Torna.Contains("//") && !Torna.Contains('\\') && !Torna.Contains(':'))
+            Navigazione.NavigateTo(Torna);
+        else Navigazione.NavigateTo("");
+    }
+}

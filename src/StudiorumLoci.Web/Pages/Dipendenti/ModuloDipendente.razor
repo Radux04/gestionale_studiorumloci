@@ -2,6 +2,35 @@
 
 <EditForm Model="Modello" OnValidSubmit="OnSalva">
     <DataAnnotationsValidator />
+    @if (Modello is NuovoDipendenteInput nuovo)
+    {
+        <fieldset class="border rounded p-3 mb-3 bg-body-tertiary">
+            <legend class="float-none w-auto px-2 fs-6 mb-0">Accesso al gestionale</legend>
+            <div class="mb-2">
+                <label class="form-label">Ruolo</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <label class="form-check">
+                        <input class="form-check-input" type="radio" name="ruoloAccesso" checked="@(nuovo.RuoloAccesso == RuoloAccesso.Professore)"
+                               @onchange="() => nuovo.RuoloAccesso = RuoloAccesso.Professore" />
+                        <span class="form-check-label"><strong>Professore</strong>
+                            <span class="d-block small text-body-secondary">vede i propri turni e gli studenti delle sue sedi</span></span>
+                    </label>
+                    <label class="form-check">
+                        <input class="form-check-input" type="radio" name="ruoloAccesso" checked="@(nuovo.RuoloAccesso == RuoloAccesso.Manager)"
+                               @onchange="() => nuovo.RuoloAccesso = RuoloAccesso.Manager" />
+                        <span class="form-check-label"><strong>Manager</strong>
+                            <span class="d-block small text-body-secondary">gestisce tutto, tranne creare ed eliminare dipendenti</span></span>
+                    </label>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Email di accesso</label>
+                <InputText class="form-control" type="email" autocomplete="off" @bind-Value="nuovo.EmailAccesso" />
+                <ValidationMessage For="() => nuovo.EmailAccesso" />
+                <div class="form-text">Dopo il salvataggio ti mostro la password temporanea da comunicargli.</div>
+            </div>
+        </fieldset>
+    }
     <div class="row g-2 mb-3">
         <div class="col-sm-6">
             <label class="form-label">Nome</label>
@@ -31,7 +60,7 @@
     </div>
     <div class="row g-2 mb-3">
         <div class="col-sm-4">
-            <label class="form-label">Ruolo</label>
+            <label class="form-label">Mansione</label>
             <InputSelect class="form-select" @bind-Value="Modello.Ruolo">
                 @foreach (var r in Enum.GetValues<RuoloDipendente>()) { <option value="@r">@Testo.Di(r)</option> }
             </InputSelect>

@@ -6,7 +6,7 @@
     {
         <div class="d-flex align-items-center gap-2 mb-2">
             <i class="bi @(r.Tipo == "application/pdf" ? "bi-file-earmark-pdf" : "bi-file-earmark-image") fs-4"></i>
-            <a href="@Api.UrlRicevuta(Pagamento.Id)" target="_blank" class="text-break">@r.Nome</a>
+            <ApriRicevuta PagamentoId="Pagamento.Id" Ricevuta="r" Classe="text-break text-start">@r.Nome</ApriRicevuta>
             <span class="text-body-secondary small text-nowrap">@Testo.Dimensione(r.Dimensione)</span>
             <span class="ms-auto"><BottoneConferma Testo="Rimuovi" Icona="bi-trash" OnConferma="Rimuovi" /></span>
         </div>

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StudiorumLoci.Api.Domain.Accessi;
 using StudiorumLoci.Api.Domain.Common;
 using StudiorumLoci.Api.Domain.Crm;
 using StudiorumLoci.Api.Domain.Dipendenti;
@@ -9,6 +10,9 @@ namespace StudiorumLoci.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    // Accessi
+    public DbSet<Utente> Utenti => Set<Utente>();
+
     // Sedi
     public DbSet<Sede> Sedi => Set<Sede>();
 
@@ -31,6 +35,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         // Schema dedicato: Supabase espone via Data API solo "public", così i dati
         // del gestionale restano raggiungibili esclusivamente tramite questa API.
         b.HasDefaultSchema("gestionale");
+
+        b.Entity<Utente>(e =>
+        {
+            e.Property(x => x.Email).HasMaxLength(256);
+            e.HasIndex(x => x.Email).IsUnique();
+            e.Property(x => x.Ruolo).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Nome).HasMaxLength(200);
+            e.Ignore(x => x.NomeVisualizzato);
+            // Un dipendente ha al più un account; eliminando il dipendente si elimina anche l'accesso.
+            e.HasOne(x => x.Dipendente).WithOne(x => x.Utente)
+                .HasForeignKey<Utente>(x => x.DipendenteId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         b.Entity<Sede>(e =>
         {

@@ -18,3 +18,12 @@ services:
         value: https://studiorum-loci.vercel.app
       - key: Cors__Origini__1
         sync: false
+      # Chiave di firma dei token di login: generata da Render, non va mai condivisa.
+      - key: Jwt__Chiave
+        generateValue: true
+      # Primo superadmin: creato all'avvio se non esiste. Dopo il primo accesso
+      # si può rimuovere Superadmin__Password.
+      - key: Superadmin__Email
+        sync: false
+      - key: Superadmin__Password
+        sync: false

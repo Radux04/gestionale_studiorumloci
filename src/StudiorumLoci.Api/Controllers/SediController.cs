@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudiorumLoci.Api.Contracts;
@@ -35,6 +36,7 @@ public class SediController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = Ruoli.Gestione)]
     public async Task<ActionResult<SedeDto>> Crea(SedeInput input)
     {
         if (Verifica(input) is { } errore) return errore;
@@ -47,6 +49,7 @@ public class SediController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = Ruoli.Gestione)]
     public async Task<ActionResult<SedeDto>> Modifica(int id, SedeInput input)
     {
         if (Verifica(input) is { } errore) return errore;
@@ -63,6 +66,7 @@ public class SediController(AppDbContext db) : ControllerBase
 
     /// <summary>Elimina la sede. Non consentito se ha studenti assegnati (anche non attivi).</summary>
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = Ruoli.Gestione)]
     public async Task<IActionResult> Elimina(int id)
     {
         var sede = await db.Sedi.FindAsync(id);

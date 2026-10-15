@@ -1,18 +1,22 @@
 @page "/dipendenti"
 @inherits PaginaBase
+@attribute [Authorize(Roles = Ruoli.Gestione)]
 
 <PageTitle>Dipendenti · Studiorum Loci</PageTitle>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h1 class="mb-0">Dipendenti</h1>
-    <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo dipendente</button>
+    @if (Sessione.PuoAmministrare)
+    {
+        <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo dipendente</button>
+    }
 </div>
 
 <Avvisi Errore="@(modulo is null ? Errore : null)" Conferma="@Conferma" />
 
 <div class="row g-2 align-items-center mb-3">
     <div class="col-sm-4 col-lg-3">
-        <SelezioneEnum TEnum="RuoloDipendente" Valore="filtroRuolo" ValoreChanged="CambiaRuolo" TestoTutti="Tutti i ruoli" />
+        <SelezioneEnum TEnum="RuoloDipendente" Valore="filtroRuolo" ValoreChanged="CambiaRuolo" TestoTutti="Tutte le mansioni" />
     </div>
     <div class="col-sm-4 col-lg-3">
         <SelezioneSede Sedi="sedi" Valore="filtroSede" ValoreChanged="CambiaSede" />
@@ -28,7 +32,7 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead>
-            <tr><th>Dipendente</th><th>Ruolo</th><th>Contratto</th><th>Sedi</th><th>Materie</th><th class="text-end">€/ora</th><th></th></tr>
+            <tr><th>Dipendente</th><th>Mansione</th><th>Accesso</th><th>Contratto</th><th>Sedi</th><th>Materie</th><th class="text-end">€/ora</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var d in dipendenti)
@@ -39,6 +43,7 @@
                         @if (!d.Attivo) { <span class="badge text-bg-secondary ms-1">Cessato</span> }
                     </td>
                     <td>@Testo.Di(d.Ruolo)</td>
+                    <td><BadgeAccesso Accesso="d.Accesso" /></td>
                     <td>@Testo.Di(d.Contratto)</td>
                     <td>
                         @if (d.SediIds.Length == 0) { <span class="text-body-secondary">—</span> }
@@ -49,13 +54,16 @@
                     <td class="text-end text-nowrap">
                         <a class="btn btn-sm btn-outline-secondary" href="dipendenti/@d.Id" title="Turni e compensi"><i class="bi bi-calendar-week"></i></a>
                         <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(d)"><i class="bi bi-pencil"></i></button>
-                        <BottoneConferma Testo="Elimina (anche i turni)" Icona="bi-trash" OnConferma="() => Elimina(d)" />
+                        @if (Sessione.PuoAmministrare && d.Id != Sessione.Utente?.DipendenteId)
+                        {
+                            <BottoneConferma Testo="Elimina (anche turni e accesso)" Icona="bi-trash" OnConferma="() => Elimina(d)" />
+                        }
                     </td>
                 </tr>
             }
             @if (dipendenti.Count == 0 && !Caricamento)
             {
-                <tr><td colspan="7" class="text-body-secondary">Nessun dipendente trovato.</td></tr>
+                <tr><td colspan="8" class="text-body-secondary">Nessun dipendente trovato.</td></tr>
             }
         </tbody>
     </table>
@@ -69,6 +77,8 @@
     }
 </Finestra>
 
+<PasswordTemporanea Dati="credenziali" OnChiudi="() => credenziali = null" />
+
 @code {
     [SupplyParameterFromQuery] public int? SedeId { get; set; }
 
@@ -78,8 +88,11 @@
     private int? filtroSede;
     private bool soloAttivi = true;
 
+    [Inject] private Sessione Sessione { get; set; } = null!;
+
     private DipendenteInput? modulo;
     private int? idInModifica;
+    private PasswordTemporaneaDto? credenziali;
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,7 +122,7 @@
         idInModifica = null;
         Errore = null;
         // Se sto guardando una sede, il nuovo dipendente parte già assegnato a quella.
-        modulo = new DipendenteInput { SediIds = filtroSede is > 0 ? [filtroSede.Value] : [] };
+        modulo = new NuovoDipendenteInput { SediIds = filtroSede is > 0 ? [filtroSede.Value] : [] };
     }
 
     private void ApriModifica(DipendenteDto d)
@@ -121,14 +134,19 @@
 
     private async Task Salva()
     {
-        var ok = await Esegui(() => idInModifica is { } id ? Api.ModificaDipendente(id, modulo!) : Api.CreaDipendente(modulo!));
-        if (ok)
+        PasswordTemporaneaDto? nuoveCredenziali = null;
+        var ok = await Esegui(async () =>
         {
-            var nome = $"{modulo!.Nome} {modulo.Cognome}";
-            modulo = null;
-            await Carica();
-            Conferma = $"{nome} salvato.";
-        }
+            if (modulo is NuovoDipendenteInput nuovo) nuoveCredenziali = (await Api.CreaDipendente(nuovo)).Accesso;
+            else await Api.ModificaDipendente(idInModifica!.Value, modulo!);
+        });
+        if (!ok) return;
+
+        var nome = $"{modulo!.Nome} {modulo.Cognome}";
+        modulo = null;
+        await Carica();
+        Conferma = $"{nome} salvato.";
+        credenziali = nuoveCredenziali;
     }
 
     private async Task Elimina(DipendenteDto d)

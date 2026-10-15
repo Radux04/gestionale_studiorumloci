@@ -23,6 +23,8 @@ Il sito pubblico [studiorum-loci.vercel.app](https://studiorum-loci.vercel.app) 
 | Dipendenti: elenco filtrabile per ruolo e sede, anagrafica con le sedi di lavoro | `/dipendenti` |
 | Scheda dipendente: turni del mese e compenso maturato | `/dipendenti/{id}` |
 | Pagamenti: quote, incassi, ricevute, riepilogo mensile, filtro per sede | `/pagamenti` |
+| Login, cambio password | `/login`, `/cambia-password` |
+| Accessi: account, reimposta password, blocca (amministrazione) | `/utenti` |
 
 L'indirizzo dell'API si imposta in `src/StudiorumLoci.Web/wwwroot/appsettings.json` (`ApiUrl`).
 
@@ -48,6 +50,8 @@ src/StudiorumLoci.Api/
 | CRM – Genitori | `api/crm/genitori` | CRUD (la DELETE elimina anche lo storico contatti) + `/{id}/interazioni` |
 | CRM – Lead | `api/crm/lead` | CRUD, `/{id}/stato`, `/{id}/converti`, `/{id}/interazioni` |
 | CRM – Storico contatti | `api/crm/interazioni/{id}` | modifica ed eliminazione |
+| Accesso | `api/auth` | `POST /login`, `GET /io`, `POST /cambia-password` |
+| Account | `api/utenti` | CRUD, `/{id}/reimposta-password` (superadmin e admin) |
 | Sito pubblico | `POST api/pubblico/contatti` | form contatti → lead (rate limit 5/min per IP) |
 | Dipendenti | `api/dipendenti` | CRUD con `sediIds` (più sedi per dipendente), filtro `sedeId` (0 = senza sede), (la DELETE elimina anche i turni), `/{id}/cessa`, `/{id}/turni` (CRUD), `/{id}/compenso?da=&a=` |
 | Pagamenti | `api/pagamenti` | CRUD, filtro `sedeId` (sede dello studente) anche su `/riepilogo`, `/{id}/incasso`, `/{id}/annulla`, `/{id}/ripristina`, `/{id}/ricevuta` (POST multipart / GET / DELETE: foto o PDF, max 10 MB), `/riepilogo?anno=&mese=` |
@@ -96,10 +100,38 @@ In sviluppo le migrazioni vengono applicate all'avvio; in alternativa:
 dotnet ef database update -p src/StudiorumLoci.Api -s src/StudiorumLoci.Api
 ```
 
+## Accesso e ruoli
+
+Login con email e password; l'API emette un token (10 ore) che il gestionale invia a ogni richiesta.
+Cambiando password, ruolo o bloccando un account, i token già emessi smettono subito di valere.
+
+| | Superadmin | Admin | Manager | Professore |
+|---|---|---|---|---|
+| CRM, sedi, pagamenti, turni | ✓ | ✓ | ✓ | — |
+| Vedere/modificare dipendenti | ✓ | ✓ | ✓ | solo la propria scheda (lettura) |
+| Creare, cessare, eliminare dipendenti e gestirne l'accesso | ✓ | ✓ | — | — |
+| Gestire account admin/superadmin | ✓ | — | — | — |
+| Studenti | ✓ | ✓ | ✓ | solo delle proprie sedi (lettura) |
+
+- Creando un dipendente si sceglie se è **manager** o **professore**; il sistema genera una password temporanea,
+  mostrata una sola volta, da cambiare al primo accesso.
+- Gli account admin (il cliente) li crea il superadmin dalla pagina **Accessi**.
+
+Configurazione (mai nel codice):
+
+```bash
+# chiave di firma dei token, almeno 32 caratteri (su Render è generata in automatico)
+dotnet user-secrets set "Jwt:Chiave" "<stringa casuale lunga>" --project src/StudiorumLoci.Api
+# primo superadmin: creato all'avvio se non esiste (poi si può rimuovere la password)
+dotnet user-secrets set "Superadmin:Email" "<email>" --project src/StudiorumLoci.Api
+dotnet user-secrets set "Superadmin:Password" "<password di almeno 10 caratteri>" --project src/StudiorumLoci.Api
+```
+
+In produzione le stesse chiavi diventano `Jwt__Chiave`, `Superadmin__Email`, `Superadmin__Password`.
+
 ## Da fare
 
-- [ ] Autenticazione dello staff (es. ASP.NET Core Identity) e `[Authorize]` su tutti i controller tranne `PubblicoController`
-- [ ] Hosting dell'API (Vercel non esegue .NET: Azure App Service, Render, Railway, Fly.io…)
+- [ ] Recupero password via email (oggi la reimposta l'amministratore)
 - [ ] Iscrizioni a corsi/fasce orarie e presenze degli studenti
 - [ ] Generazione automatica delle rette mensili e ricevute
 - [ ] Test automatici

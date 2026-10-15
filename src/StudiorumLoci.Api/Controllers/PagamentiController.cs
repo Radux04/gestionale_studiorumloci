@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Net.Http.Headers;
@@ -9,6 +10,7 @@ namespace StudiorumLoci.Api.Controllers;
 
 [ApiController]
 [Route("api/pagamenti")]
+[Authorize(Roles = Ruoli.Gestione)]
 public class PagamentiController(AppDbContext db, TimeProvider clock) : ControllerBase
 {
     private DateOnly Oggi => DateOnly.FromDateTime(clock.GetLocalNow().DateTime);

@@ -1,0 +1,145 @@
+@page "/utenti"
+@inherits PaginaBase
+@attribute [Authorize(Roles = Ruoli.Amministrazione)]
+
+<PageTitle>Accessi · Studiorum Loci</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Accessi</h1>
+    @if (superadmin)
+    {
+        <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo amministratore</button>
+    }
+</div>
+
+<p class="text-body-secondary small">
+    Gli accessi di manager e professori si creano insieme al dipendente (pagina <a href="dipendenti">Dipendenti</a>)
+    e si gestiscono anche dalla sua scheda.
+</p>
+
+<Avvisi Errore="@(nuovo is null ? Errore : null)" Conferma="@Conferma" />
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Persona</th><th>Email di accesso</th><th>Ruolo</th><th>Ultimo accesso</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var u in utenti)
+            {
+                var gestibile = u.Id != Sessione.Utente?.Id && Ruoli.Assegnabili(Sessione.Utente!.Ruolo).Contains(u.Ruolo);
+                <tr class="@(u.Attivo ? "" : "text-body-secondary")">
+                    <td>
+                        @if (u.DipendenteId is { } dip) { <a href="dipendenti/@dip">@u.Nome</a> } else { @u.Nome }
+                        @if (u.Id == Sessione.Utente?.Id) { <span class="badge text-bg-light border ms-1">tu</span> }
+                    </td>
+                    <td class="text-break">@u.Email</td>
+                    <td>
+                        <BadgeAccesso Accesso="new AccessoDto(u.Id, u.Email, u.Ruolo, u.Attivo, u.DeveCambiarePassword, u.UltimoAccesso)" />
+                    </td>
+                    <td class="small">@(u.UltimoAccesso is { } ua ? Testo.DataOra(ua) : "mai")</td>
+                    <td class="text-end text-nowrap">
+                        @if (gestibile)
+                        {
+                            <BottoneConferma Testo="Reimposta password" Icona="bi-key" Classe="btn-outline-secondary" OnConferma="() => Reimposta(u)" />
+                            @if (u.Attivo)
+                            {
+                                <BottoneConferma Testo="Blocca" Icona="bi-lock" Classe="btn-outline-secondary" OnConferma="() => CambiaStato(u, false)" />
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-success" title="Sblocca" @onclick="() => CambiaStato(u, true)"><i class="bi bi-unlock"></i></button>
+                            }
+                            <BottoneConferma Testo="Elimina accesso" Icona="bi-trash" OnConferma="() => Elimina(u)" />
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<Finestra Visibile="nuovo is not null" Titolo="Nuovo amministratore" OnChiudi="() => nuovo = null">
+    @if (nuovo is not null)
+    {
+        <Avvisi Errore="@Errore" />
+        <EditForm Model="nuovo" OnValidSubmit="Crea">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Nome</label>
+                <InputText class="form-control" placeholder="es. Mario Rossi (titolare)" @bind-Value="nuovo.Nome" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email di accesso</label>
+                <InputText class="form-control" type="email" autocomplete="off" @bind-Value="nuovo.Email" />
+                <ValidationMessage For="() => nuovo.Email" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Ruolo</label>
+                <InputSelect class="form-select" @bind-Value="nuovo.Ruolo">
+                    <option value="@RuoloAccesso.Admin">Admin (cliente proprietario)</option>
+                    <option value="@RuoloAccesso.SuperAdmin">Superadmin (staff tecnico)</option>
+                </InputSelect>
+            </div>
+            <button class="btn btn-primary" disabled="@Caricamento">Crea e mostra la password</button>
+        </EditForm>
+    }
+</Finestra>
+
+<PasswordTemporanea Dati="credenziali" OnChiudi="() => credenziali = null" />
+
+@code {
+    [Inject] private Sessione Sessione { get; set; } = null!;
+
+    private bool superadmin => Sessione.Utente?.Ruolo == RuoloAccesso.SuperAdmin;
+
+    private List<UtenteDto> utenti = [];
+    private UtenteInput? nuovo;
+    private PasswordTemporaneaDto? credenziali;
+
+    protected override Task OnInitializedAsync() => Carica();
+
+    private Task Carica() => Esegui(async () => utenti = await Api.Utenti());
+
+    private void ApriNuovo()
+    {
+        Errore = null;
+        nuovo = new UtenteInput { Ruolo = RuoloAccesso.Admin };
+    }
+
+    private async Task Crea()
+    {
+        PasswordTemporaneaDto? creato = null;
+        if (await Esegui(async () => creato = await Api.CreaUtente(nuovo!)))
+        {
+            nuovo = null;
+            await Carica();
+            credenziali = creato;
+        }
+    }
+
+    private async Task Reimposta(UtenteDto u)
+    {
+        PasswordTemporaneaDto? nuova = null;
+        if (await Esegui(async () => nuova = await Api.ReimpostaPassword(u.Id)))
+        {
+            await Carica();
+            credenziali = nuova;
+        }
+    }
+
+    private async Task CambiaStato(UtenteDto u, bool attivo)
+    {
+        var input = new UtenteInput { Email = u.Email, Nome = u.DipendenteId is null ? u.Nome : null, Ruolo = u.Ruolo, Attivo = attivo, DipendenteId = u.DipendenteId };
+        if (await Esegui(() => Api.ModificaUtente(u.Id, input))) await Carica();
+    }
+
+    private async Task Elimina(UtenteDto u)
+    {
+        if (await Esegui(() => Api.EliminaUtente(u.Id)))
+        {
+            await Carica();
+            Conferma = $"Accesso di {u.Nome} eliminato.";
+        }
+    }
+}

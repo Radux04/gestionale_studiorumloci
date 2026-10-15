@@ -5,7 +5,7 @@ namespace StudiorumLoci.Shared;
 public record DipendenteDto(
     int Id, string Nome, string Cognome, string? Email, string? Telefono, string? CodiceFiscale,
     RuoloDipendente Ruolo, TipoContratto Contratto, DateOnly DataAssunzione, DateOnly? DataCessazione,
-    decimal CompensoOrario, string? Materie, bool Attivo, int[] SediIds)
+    decimal CompensoOrario, string? Materie, bool Attivo, int[] SediIds, AccessoDto? Accesso)
 {
     public string NomeCompleto => $"{Cognome} {Nome}";
 }
@@ -32,6 +32,16 @@ public class DipendenteInput
         Ruolo = d.Ruolo, Contratto = d.Contratto, DataAssunzione = d.DataAssunzione, DataCessazione = d.DataCessazione,
         CompensoOrario = d.CompensoOrario, Materie = d.Materie, Attivo = d.Attivo, SediIds = [.. d.SediIds],
     };
+}
+
+/// <summary>Creazione di un dipendente: oltre all'anagrafica si decide subito il suo accesso al gestionale.</summary>
+public class NuovoDipendenteInput : DipendenteInput
+{
+    [Required(ErrorMessage = "Inserisci l'email con cui accederà"), EmailAddress(ErrorMessage = "Email non valida")]
+    public string EmailAccesso { get; set; } = "";
+
+    /// <summary>Manager o Professore.</summary>
+    public RuoloAccesso RuoloAccesso { get; set; } = RuoloAccesso.Professore;
 }
 
 public record TurnoDto(int Id, int DipendenteId, DateTime Inizio, DateTime Fine, decimal Ore, string? Note);

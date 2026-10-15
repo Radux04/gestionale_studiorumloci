@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudiorumLoci.Api.Contracts;
@@ -8,6 +9,7 @@ namespace StudiorumLoci.Api.Controllers.Crm;
 
 [ApiController]
 [Route("api/crm/lead")]
+[Authorize(Roles = Ruoli.Gestione)]
 public class LeadController(AppDbContext db) : ControllerBase
 {
     [HttpGet]

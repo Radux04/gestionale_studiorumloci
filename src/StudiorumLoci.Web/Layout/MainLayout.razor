@@ -1,12 +1,22 @@
 ﻿@inherits LayoutComponentBase
+@inject Sessione Sessione
+@inject NavigationManager Navigazione
+
 <div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <a href="https://studiorum-loci.vercel.app" target="_blank">Sito pubblico <i class="bi bi-box-arrow-up-right"></i></a>
+        <div class="top-row px-4 gap-3">
+            @if (Sessione.Utente is { } u)
+            {
+                <span class="text-body-secondary small d-none d-sm-inline">
+                    <i class="bi bi-person-circle"></i> @u.Nome · @Testo.Di(u.Ruolo)
+                </span>
+                <a href="cambia-password" class="small">Cambia password</a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Esci"><i class="bi bi-box-arrow-right"></i> Esci</button>
+            }
         </div>
 
         <article class="content px-4">
@@ -14,3 +24,17 @@
         </article>
     </main>
 </div>
+
+@code {
+    protected override void OnParametersSet()
+    {
+        // Con la password temporanea si può solo cambiarla.
+        if (Sessione.Utente?.DeveCambiarePassword == true) Navigazione.NavigateTo("cambia-password");
+    }
+
+    private async Task Esci()
+    {
+        await Sessione.Esci();
+        Navigazione.NavigateTo("login");
+    }
+}

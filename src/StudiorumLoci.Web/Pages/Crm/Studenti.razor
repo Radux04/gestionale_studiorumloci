@@ -4,13 +4,16 @@
 <PageTitle>Studenti · Studiorum Loci</PageTitle>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="mb-0">Studenti</h1>
-    <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo studente</button>
+    <h1 class="mb-0">@(gestione ? "Studenti" : "I miei studenti")</h1>
+    @if (gestione)
+    {
+        <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo studente</button>
+    }
 </div>
 
 <Avvisi Errore="@(modulo is null ? Errore : null)" Conferma="@Conferma" />
 
-@if (sedi.Count == 0 && !Caricamento)
+@if (gestione && sedi.Count == 0 && !Caricamento)
 {
     <div class="alert alert-warning"><i class="bi bi-geo-alt me-2"></i>Per aggiungere studenti serve almeno una sede. <a href="sedi">Crea la prima sede</a>.</div>
 }
@@ -37,7 +40,7 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead>
-            <tr><th>Studente</th><th>Sede</th><th>Scuola</th><th>Classe</th><th>Genitori</th><th></th></tr>
+            <tr><th>Studente</th><th>Sede</th><th>Scuola</th><th>Classe</th>@if (gestione) { <th>Genitori</th><th></th> } else { <th>Note</th> }</tr>
         </thead>
         <tbody>
             @foreach (var s in studenti)
@@ -53,21 +56,28 @@
                     </td>
                     <td>@s.Scuola</td>
                     <td>@s.Classe</td>
-                    <td>@string.Join(", ", s.GenitoriIds.Select(NomeGenitore))</td>
-                    <td class="text-end text-nowrap">
-                        <a class="btn btn-sm btn-outline-secondary" href="pagamenti?studenteId=@s.Id" title="Pagamenti"><i class="bi bi-cash-coin"></i></a>
-                        <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(s)"><i class="bi bi-pencil"></i></button>
-                        @if (s.Attivo)
-                        {
-                            <BottoneConferma Testo="Disattiva" Icona="bi-archive" Classe="btn-outline-secondary" OnConferma="() => Disattiva(s)" />
-                        }
-                        <BottoneConferma Testo="Elimina definitivamente" Icona="bi-trash" OnConferma="() => Elimina(s)" />
-                    </td>
+                    @if (gestione)
+                    {
+                        <td>@string.Join(", ", s.GenitoriIds.Select(NomeGenitore))</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" href="pagamenti?studenteId=@s.Id" title="Pagamenti"><i class="bi bi-cash-coin"></i></a>
+                            <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(s)"><i class="bi bi-pencil"></i></button>
+                            @if (s.Attivo)
+                            {
+                                <BottoneConferma Testo="Disattiva" Icona="bi-archive" Classe="btn-outline-secondary" OnConferma="() => Disattiva(s)" />
+                            }
+                            <BottoneConferma Testo="Elimina definitivamente" Icona="bi-trash" OnConferma="() => Elimina(s)" />
+                        </td>
+                    }
+                    else
+                    {
+                        <td class="small" style="white-space: pre-line">@s.Note</td>
+                    }
                 </tr>
             }
             @if (studenti.Count == 0 && !Caricamento)
             {
-                <tr><td colspan="6" class="text-body-secondary">Nessuno studente trovato.</td></tr>
+                <tr><td colspan="6" class="text-body-secondary">@(gestione ? "Nessuno studente trovato." : "Nessuno studente nelle sedi in cui lavori.")</td></tr>
             }
         </tbody>
     </table>
@@ -151,6 +161,11 @@
 @code {
     [SupplyParameterFromQuery] public int? SedeId { get; set; }
 
+    [Inject] private Sessione Sessione { get; set; } = null!;
+
+    /// <summary>Il professore vede solo gli studenti delle sue sedi, in sola lettura.</summary>
+    private bool gestione => Sessione.PuoGestire;
+
     private List<StudenteDto> studenti = [];
     private List<GenitoreDto> genitori = [];
     private List<SedeDto> sedi = [];
@@ -166,7 +181,7 @@
         filtroSede = SedeId;
         await Esegui(async () =>
         {
-            genitori = await Api.Genitori();
+            if (gestione) genitori = await Api.Genitori();
             sedi = await Api.Sedi();
         });
         await Carica();

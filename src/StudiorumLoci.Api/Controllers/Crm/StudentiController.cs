@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StudiorumLoci.Api.Auth;
 using StudiorumLoci.Api.Contracts;
 using StudiorumLoci.Api.Data;
 using StudiorumLoci.Api.Domain.Crm;
@@ -7,15 +9,20 @@ using StudiorumLoci.Api.Domain.Sedi;
 
 namespace StudiorumLoci.Api.Controllers.Crm;
 
+/// <summary>
+/// Studenti. La gestione vede e modifica tutto; il professore vede (in sola lettura)
+/// gli studenti delle sedi in cui lavora.
+/// </summary>
 [ApiController]
 [Route("api/crm/studenti")]
+[Authorize]
 public class StudentiController(AppDbContext db) : ControllerBase
 {
     /// <param name="sedeId">Filtra per sede; 0 = studenti senza sede assegnata.</param>
     [HttpGet]
     public async Task<IEnumerable<StudenteDto>> Elenco(string? cerca, int? sedeId, bool soloAttivi = true)
     {
-        var query = db.Studenti.Include(s => s.Genitori).Include(s => s.Sede).AsNoTracking();
+        var query = Visibili(db.Studenti.Include(s => s.Genitori).Include(s => s.Sede).AsNoTracking());
         if (soloAttivi) query = query.Where(s => s.Attivo);
         if (sedeId == 0) query = query.Where(s => s.SedeId == null);
         else if (sedeId is not null) query = query.Where(s => s.SedeId == sedeId);
@@ -29,12 +36,21 @@ public class StudentiController(AppDbContext db) : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<StudenteDto>> Dettaglio(int id)
     {
-        var studente = await db.Studenti.Include(s => s.Genitori).Include(s => s.Sede).AsNoTracking()
+        var studente = await Visibili(db.Studenti.Include(s => s.Genitori).Include(s => s.Sede).AsNoTracking())
             .FirstOrDefaultAsync(s => s.Id == id);
         return studente is null ? NotFound() : studente.ToDto();
     }
 
+    /// <summary>Per chi non è della gestione, solo gli studenti delle sedi in cui lavora.</summary>
+    private IQueryable<Studente> Visibili(IQueryable<Studente> query)
+    {
+        if (User.PuoGestire()) return query;
+        var dipendenteId = User.DipendenteId();
+        return query.Where(s => s.Sede != null && s.Sede.Dipendenti.Any(d => d.Id == dipendenteId));
+    }
+
     [HttpPost]
+    [Authorize(Roles = Ruoli.Gestione)]
     public async Task<ActionResult<StudenteDto>> Crea(StudenteInput input)
     {
         var sede = await db.Sedi.FindAsync(input.SedeId);
@@ -48,6 +64,7 @@ public class StudentiController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = Ruoli.Gestione)]
     public async Task<ActionResult<StudenteDto>> Modifica(int id, StudenteInput input)
     {
         var sede = await db.Sedi.FindAsync(input.SedeId);
@@ -63,6 +80,7 @@ public class StudentiController(AppDbContext db) : ControllerBase
 
     /// <summary>Disattiva lo studente: lo storico (pagamenti, ecc.) resta consultabile.</summary>
     [HttpPost("{id:int}/disattiva")]
+    [Authorize(Roles = Ruoli.Gestione)]
     public async Task<IActionResult> Disattiva(int id)
     {
         var studente = await db.Studenti.FindAsync(id);
@@ -75,6 +93,7 @@ public class StudentiController(AppDbContext db) : ControllerBase
 
     /// <summary>Elimina definitivamente lo studente. Non consentito se ha pagamenti registrati.</summary>
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = Ruoli.Gestione)]
     public async Task<IActionResult> Elimina(int id)
     {
         var studente = await db.Studenti.FindAsync(id);

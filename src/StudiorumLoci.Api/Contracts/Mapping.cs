@@ -1,3 +1,4 @@
+using StudiorumLoci.Api.Domain.Accessi;
 using StudiorumLoci.Api.Domain.Crm;
 using StudiorumLoci.Api.Domain.Dipendenti;
 using StudiorumLoci.Api.Domain.Pagamenti;
@@ -30,7 +31,15 @@ public static class Mapping
     public static DipendenteDto ToDto(this Dipendente d) => new(
         d.Id, d.Nome, d.Cognome, d.Email, d.Telefono, d.CodiceFiscale, d.Ruolo, d.Contratto,
         d.DataAssunzione, d.DataCessazione, d.CompensoOrario, d.Materie, d.Attivo,
-        d.Sedi.Select(s => s.Id).ToArray());
+        d.Sedi.Select(s => s.Id).ToArray(),
+        d.Utente is { } u ? new AccessoDto(u.Id, u.Email, u.Ruolo, u.Attivo, u.DeveCambiarePassword, u.UltimoAccesso) : null);
+
+    /// <remarks>Per il nome richiede che <see cref="Utente.Dipendente"/> sia caricato.</remarks>
+    public static UtenteDto ToDto(this Utente u) => new(
+        u.Id, u.Email, u.NomeVisualizzato, u.Ruolo, u.Attivo, u.DeveCambiarePassword, u.UltimoAccesso, u.DipendenteId);
+
+    public static UtenteCorrenteDto ToCorrenteDto(this Utente u) => new(
+        u.Id, u.Email, u.NomeVisualizzato, u.Ruolo, u.DipendenteId, u.DeveCambiarePassword);
 
     public static TurnoDto ToDto(this Turno t) => new(t.Id, t.DipendenteId, t.Inizio, t.Fine, t.Ore, t.Note);
 

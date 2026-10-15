@@ -1,0 +1,10 @@
+@* Porta alla pagina di login ricordando dove si voleva andare. *@
+@inject NavigationManager Navigazione
+
+@code {
+    protected override void OnInitialized()
+    {
+        var destinazione = Navigazione.ToBaseRelativePath(Navigazione.Uri);
+        Navigazione.NavigateTo(string.IsNullOrEmpty(destinazione) ? "login" : $"login?torna={Uri.EscapeDataString(destinazione)}");
+    }
+}

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudiorumLoci.Api.Contracts;
 using StudiorumLoci.Api.Data;
@@ -7,6 +8,7 @@ namespace StudiorumLoci.Api.Controllers.Crm;
 /// <summary>Modifica ed eliminazione delle voci dello storico contatti (create da lead o genitori).</summary>
 [ApiController]
 [Route("api/crm/interazioni")]
+[Authorize(Roles = Ruoli.Gestione)]
 public class InterazioniController(AppDbContext db) : ControllerBase
 {
     [HttpPut("{id:int}")]

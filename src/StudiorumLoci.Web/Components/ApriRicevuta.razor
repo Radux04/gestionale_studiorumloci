@@ -1,0 +1,82 @@
+@* Pulsante che mostra la ricevuta di un pagamento in una finestra (immagine o PDF), con link per aprirla o scaricarla. *@
+@inject ApiClient Api
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<button type="button" class="btn btn-link p-0 @Classe" title="Ricevuta: @Ricevuta.Nome" @onclick="Apri">
+    @if (ChildContent is not null) { @ChildContent } else { <i class="bi bi-paperclip"></i> }
+</button>
+
+<Finestra Visibile="aperta" Titolo="@Ricevuta.Nome" Grande OnChiudi="Chiudi">
+    @if (errore is not null)
+    {
+        <div class="alert alert-danger">@errore</div>
+    }
+    else if (url is null)
+    {
+        <div class="text-body-secondary"><span class="spinner-border spinner-border-sm"></span> Caricamento…</div>
+    }
+    else
+    {
+        <div class="d-flex gap-2 mb-2">
+            <a class="btn btn-sm btn-outline-primary" href="@url" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Apri in una nuova scheda</a>
+            <a class="btn btn-sm btn-outline-secondary" href="@url" download="@Ricevuta.Nome"><i class="bi bi-download"></i> Scarica</a>
+        </div>
+        @if (Ricevuta.Tipo == "application/pdf")
+        {
+            <iframe src="@url" title="@Ricevuta.Nome" class="w-100 border rounded" style="height: 70vh"></iframe>
+        }
+        else if (Ricevuta.Tipo is "image/heic" or "image/heif")
+        {
+            <p class="text-body-secondary">Le foto HEIC (iPhone) non si possono mostrare qui: usa «Scarica» per aprirla.</p>
+        }
+        else
+        {
+            <img src="@url" alt="@Ricevuta.Nome" class="img-fluid border rounded" />
+        }
+    }
+</Finestra>
+
+@code {
+    [Parameter, EditorRequired] public int PagamentoId { get; set; }
+    [Parameter, EditorRequired] public RicevutaDto Ricevuta { get; set; } = null!;
+    [Parameter] public string? Classe { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool aperta;
+    private string? url;
+    private string? errore;
+
+    private async Task Apri()
+    {
+        aperta = true;
+        errore = null;
+        try
+        {
+            var contenuto = await Api.ScaricaRicevuta(PagamentoId);
+            url = await JS.InvokeAsync<string>("creaUrlFile", contenuto, Ricevuta.Tipo);
+        }
+        catch (ApiException ex)
+        {
+            errore = ex.Message;
+        }
+    }
+
+    private async Task Chiudi()
+    {
+        aperta = false;
+        await Rilascia();
+    }
+
+    private async Task Rilascia()
+    {
+        if (url is null) return;
+        await JS.InvokeVoidAsync("URL.revokeObjectURL", url);
+        url = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await Rilascia(); } catch (JSDisconnectedException) { }
+    }
+}

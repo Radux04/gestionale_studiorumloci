@@ -1,0 +1,30 @@
+@* Ruolo di accesso al gestionale, con stato (bloccato / password da cambiare). *@
+
+@if (Accesso is null)
+{
+    <span class="text-body-secondary small">Nessun accesso</span>
+}
+else
+{
+    <span class="badge @Colore(Accesso.Ruolo) @(Accesso.Attivo ? "" : "opacity-50")">@Testo.Di(Accesso.Ruolo)</span>
+    @if (!Accesso.Attivo)
+    {
+        <span class="badge text-bg-secondary ms-1" title="Non può accedere">Bloccato</span>
+    }
+    else if (Accesso.DeveCambiarePassword)
+    {
+        <i class="bi bi-hourglass-split text-body-secondary ms-1" title="Non ha ancora fatto il primo accesso"></i>
+    }
+}
+
+@code {
+    [Parameter] public AccessoDto? Accesso { get; set; }
+
+    public static string Colore(RuoloAccesso ruolo) => ruolo switch
+    {
+        RuoloAccesso.SuperAdmin => "text-bg-dark",
+        RuoloAccesso.Admin => "text-bg-danger",
+        RuoloAccesso.Manager => "text-bg-primary",
+        _ => "text-bg-info",
+    };
+}

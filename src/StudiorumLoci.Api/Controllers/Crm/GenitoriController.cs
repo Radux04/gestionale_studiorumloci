@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudiorumLoci.Api.Contracts;
@@ -8,6 +9,7 @@ namespace StudiorumLoci.Api.Controllers.Crm;
 
 [ApiController]
 [Route("api/crm/genitori")]
+[Authorize(Roles = Ruoli.Gestione)]
 public class GenitoriController(AppDbContext db) : ControllerBase
 {
     [HttpGet]

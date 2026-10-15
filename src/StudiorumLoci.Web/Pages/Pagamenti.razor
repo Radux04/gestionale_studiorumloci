@@ -1,5 +1,6 @@
 @page "/pagamenti"
 @inherits PaginaBase
+@attribute [Authorize(Roles = Ruoli.Gestione)]
 
 <PageTitle>Pagamenti · Studiorum Loci</PageTitle>
 
@@ -73,7 +74,7 @@
                         }
                         @if (p.Ricevuta is { } r)
                         {
-                            <a href="@Api.UrlRicevuta(p.Id)" target="_blank" class="ms-1" title="Ricevuta: @r.Nome"><i class="bi bi-paperclip"></i></a>
+                            <ApriRicevuta PagamentoId="p.Id" Ricevuta="r" Classe="ms-1 align-baseline" />
                         }
                     </td>
                     <td class="text-end text-nowrap">

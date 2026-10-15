@@ -53,6 +53,64 @@ namespace StudiorumLoci.Api.Data.Migrations
                     b.ToTable("StudenteGenitore", "gestionale");
                 });
 
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Accessi.Utente", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Attivo")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatoIl")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("DeveCambiarePassword")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("DipendenteId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("ModificatoIl")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Nome")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Ruolo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("UltimoAccesso")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VersioneToken")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DipendenteId")
+                        .IsUnique();
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Utenti", "gestionale");
+                });
+
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Crm.Genitore", b =>
                 {
                     b.Property<int>("Id")
@@ -490,6 +548,16 @@ namespace StudiorumLoci.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Accessi.Utente", b =>
+                {
+                    b.HasOne("StudiorumLoci.Api.Domain.Dipendenti.Dipendente", "Dipendente")
+                        .WithOne("Utente")
+                        .HasForeignKey("StudiorumLoci.Api.Domain.Accessi.Utente", "DipendenteId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Dipendente");
+                });
+
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Crm.Interazione", b =>
                 {
                     b.HasOne("StudiorumLoci.Api.Domain.Crm.Genitore", "Genitore")
@@ -576,6 +644,8 @@ namespace StudiorumLoci.Api.Data.Migrations
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Dipendenti.Dipendente", b =>
                 {
                     b.Navigation("Turni");
+
+                    b.Navigation("Utente");
                 });
 
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Sedi.Sede", b =>

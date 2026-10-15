@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using StudiorumLoci.Api;
+using StudiorumLoci.Api.Auth;
 using StudiorumLoci.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,13 +31,16 @@ builder.Services.AddCors(o => o.AddPolicy(CorsSito, p => p
     .AllowAnyHeader()
     .AllowAnyMethod()));
 
-// Limita gli invii del form contatti per IP, per scoraggiare lo spam.
+// Limiti per IP: form contatti (anti-spam) e login/cambio password (anti tentativi a ripetizione).
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.AddPolicy(RateLimitPolicies.Pubblico, ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "sconosciuto",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
+    o.AddPolicy(RateLimitPolicies.Login, ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "sconosciuto",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });
 
 // In produzione l'API sta dietro il proxy dell'hosting (Render): l'IP reale del
@@ -48,15 +52,16 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
     o.KnownProxies.Clear();
 });
 
-// TODO: autenticazione per lo staff (es. ASP.NET Core Identity + cookie/JWT) e
-// [Authorize] su tutti i controller tranne PubblicoController.
+// Login con token (Jwt:Chiave da user-secrets / variabile d'ambiente Jwt__Chiave).
+// Ogni endpoint richiede l'accesso, salvo quelli marcati [AllowAnonymous].
+builder.Services.AddAccessi(builder.Configuration);
 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(); // UI di prova: /scalar
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous(); // UI di prova: /scalar
 
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
@@ -71,11 +76,14 @@ app.UseCors(CorsSito);
 app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.UseRateLimiter();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 // Usato dall'hosting per verificare che l'API sia attiva.
-app.MapGet("/salute", () => Results.Ok("ok"));
+app.MapGet("/salute", () => Results.Ok("ok")).AllowAnonymous();
+
+await app.CreaSuperadminSeConfiguratoAsync();
 
 app.Run();
