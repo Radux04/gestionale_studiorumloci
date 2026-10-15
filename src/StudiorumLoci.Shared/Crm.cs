@@ -6,7 +6,8 @@ namespace StudiorumLoci.Shared;
 
 public record StudenteDto(
     int Id, string Nome, string Cognome, DateOnly? DataNascita,
-    string? Scuola, string? Classe, string? Note, bool Attivo, int[] GenitoriIds)
+    string? Scuola, string? Classe, string? Note, bool Attivo, int[] GenitoriIds,
+    int? SedeId, string? Sede)
 {
     public string NomeCompleto => $"{Cognome} {Nome}";
 }
@@ -15,6 +16,7 @@ public class StudenteInput
 {
     [Required(ErrorMessage = "Nome obbligatorio"), MaxLength(100)] public string Nome { get; set; } = "";
     [Required(ErrorMessage = "Cognome obbligatorio"), MaxLength(100)] public string Cognome { get; set; } = "";
+    [Range(1, int.MaxValue, ErrorMessage = "Seleziona la sede")] public int SedeId { get; set; }
     public DateOnly? DataNascita { get; set; }
     public string? Scuola { get; set; }
     public string? Classe { get; set; }
@@ -24,7 +26,7 @@ public class StudenteInput
 
     public static StudenteInput Da(StudenteDto s) => new()
     {
-        Nome = s.Nome, Cognome = s.Cognome, DataNascita = s.DataNascita, Scuola = s.Scuola,
+        Nome = s.Nome, Cognome = s.Cognome, SedeId = s.SedeId ?? 0, DataNascita = s.DataNascita, Scuola = s.Scuola,
         Classe = s.Classe, Note = s.Note, Attivo = s.Attivo, GenitoriIds = [.. s.GenitoriIds],
     };
 }

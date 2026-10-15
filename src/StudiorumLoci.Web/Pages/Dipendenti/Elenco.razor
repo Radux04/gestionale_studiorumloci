@@ -57,6 +57,7 @@
 <Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuovo dipendente" : "Modifica dipendente")" Grande OnChiudi="() => modulo = null">
     @if (modulo is not null)
     {
+        <Avvisi Errore="@Errore" />
         <ModuloDipendente Modello="modulo" Disabilitato="Caricamento" OnSalva="Salva" />
     }
 </Finestra>

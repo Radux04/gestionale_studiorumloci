@@ -17,9 +17,17 @@ public class ApiClient(HttpClient http)
         Converters = { new JsonStringEnumConverter() },
     };
 
+    // ---- Sedi ----
+    public Task<List<SedeDto>> Sedi(string? regione = null, bool soloAttive = false) =>
+        Get<List<SedeDto>>($"api/sedi?soloAttive={soloAttive}&regione={Uri.EscapeDataString(regione ?? "")}");
+    public Task<SedeDto> CreaSede(SedeInput s) => Send<SedeDto>(HttpMethod.Post, "api/sedi", s);
+    public Task<SedeDto> ModificaSede(int id, SedeInput s) => Send<SedeDto>(HttpMethod.Put, $"api/sedi/{id}", s);
+    public Task EliminaSede(int id) => Send(HttpMethod.Delete, $"api/sedi/{id}");
+
     // ---- CRM: studenti ----
-    public Task<List<StudenteDto>> Studenti(string? cerca = null, bool soloAttivi = true) =>
-        Get<List<StudenteDto>>($"api/crm/studenti?soloAttivi={soloAttivi}&cerca={Uri.EscapeDataString(cerca ?? "")}");
+    /// <param name="sedeId">0 = solo studenti senza sede.</param>
+    public Task<List<StudenteDto>> Studenti(string? cerca = null, bool soloAttivi = true, int? sedeId = null) =>
+        Get<List<StudenteDto>>($"api/crm/studenti?soloAttivi={soloAttivi}&sedeId={sedeId}&cerca={Uri.EscapeDataString(cerca ?? "")}");
     public Task<StudenteDto> CreaStudente(StudenteInput s) => Send<StudenteDto>(HttpMethod.Post, "api/crm/studenti", s);
     public Task<StudenteDto> ModificaStudente(int id, StudenteInput s) => Send<StudenteDto>(HttpMethod.Put, $"api/crm/studenti/{id}", s);
     public Task DisattivaStudente(int id) => Send(HttpMethod.Post, $"api/crm/studenti/{id}/disattiva");
@@ -158,8 +166,8 @@ public class ApiClient(HttpClient http)
 
             if (root.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Object)
             {
-                var dettagli = errors.EnumerateObject().SelectMany(e => e.Value.EnumerateArray().Select(v => v.GetString()));
-                return string.Join(" ", dettagli);
+                var dettagli = string.Join(" ", errors.EnumerateObject().SelectMany(e => e.Value.EnumerateArray().Select(v => v.GetString())));
+                if (dettagli.Length > 0) return dettagli;
             }
             if (root.TryGetProperty("detail", out var detail) && detail.GetString() is { Length: > 0 } d) return d;
             if (root.TryGetProperty("title", out var title) && title.GetString() is { Length: > 0 } t) return t;

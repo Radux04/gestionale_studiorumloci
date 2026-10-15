@@ -49,6 +49,7 @@
 <Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuovo genitore" : "Modifica genitore")" Grande OnChiudi="() => modulo = null">
     @if (modulo is not null)
     {
+        <Avvisi Errore="@Errore" />
         <EditForm Model="modulo" OnValidSubmit="Salva">
             <DataAnnotationsValidator />
             <div class="row g-2 mb-3">

@@ -8,11 +8,23 @@
     <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuovo studente</button>
 </div>
 
-<Avvisi Errore="@Errore" Conferma="@Conferma" />
+<Avvisi Errore="@(modulo is null ? Errore : null)" Conferma="@Conferma" />
+
+@if (sedi.Count == 0 && !Caricamento)
+{
+    <div class="alert alert-warning"><i class="bi bi-geo-alt me-2"></i>Per aggiungere studenti serve almeno una sede. <a href="sedi">Crea la prima sede</a>.</div>
+}
 
 <div class="row g-2 align-items-center mb-3">
     <div class="col-sm-6 col-lg-4">
         <input class="form-control" type="search" placeholder="Cerca per nome o cognome" @bind="cerca" @bind:event="oninput" @bind:after="Carica" />
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <select class="form-select" value="@(filtroSede?.ToString() ?? "")" @onchange="CambiaSede">
+            <option value="">Tutte le sedi</option>
+            @foreach (var s in sedi) { <option value="@s.Id">@s.Nome</option> }
+            <option value="0">— Senza sede —</option>
+        </select>
     </div>
     <div class="col-auto">
         <div class="form-check">
@@ -25,7 +37,7 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle">
         <thead>
-            <tr><th>Studente</th><th>Scuola</th><th>Classe</th><th>Genitori</th><th></th></tr>
+            <tr><th>Studente</th><th>Sede</th><th>Scuola</th><th>Classe</th><th>Genitori</th><th></th></tr>
         </thead>
         <tbody>
             @foreach (var s in studenti)
@@ -34,6 +46,10 @@
                     <td>
                         @s.NomeCompleto
                         @if (!s.Attivo) { <span class="badge text-bg-secondary ms-1">Non attivo</span> }
+                    </td>
+                    <td>
+                        @if (s.Sede is not null) { @s.Sede }
+                        else { <span class="badge text-bg-warning">Senza sede</span> }
                     </td>
                     <td>@s.Scuola</td>
                     <td>@s.Classe</td>
@@ -51,7 +67,7 @@
             }
             @if (studenti.Count == 0 && !Caricamento)
             {
-                <tr><td colspan="5" class="text-body-secondary">Nessuno studente trovato.</td></tr>
+                <tr><td colspan="6" class="text-body-secondary">Nessuno studente trovato.</td></tr>
             }
         </tbody>
     </table>
@@ -60,8 +76,22 @@
 <Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuovo studente" : "Modifica studente")" Grande OnChiudi="() => modulo = null">
     @if (modulo is not null)
     {
+        <Avvisi Errore="@Errore" />
         <EditForm Model="modulo" OnValidSubmit="Salva">
             <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Sede</label>
+                <InputSelect class="form-select" @bind-Value="modulo.SedeId">
+                    <option value="0">— seleziona la sede —</option>
+                    @foreach (var g in sedi.Where(x => x.Attiva || x.Id == modulo.SedeId).GroupBy(x => x.Regione))
+                    {
+                        <optgroup label="@g.Key">
+                            @foreach (var s in g) { <option value="@s.Id">@s.Nome — @s.Localita</option> }
+                        </optgroup>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => modulo.SedeId" />
+            </div>
             <div class="row g-2 mb-3">
                 <div class="col-sm-6">
                     <label class="form-label">Nome</label>
@@ -119,9 +149,13 @@
 </Finestra>
 
 @code {
+    [SupplyParameterFromQuery] public int? SedeId { get; set; }
+
     private List<StudenteDto> studenti = [];
     private List<GenitoreDto> genitori = [];
+    private List<SedeDto> sedi = [];
     private string? cerca;
+    private int? filtroSede;
     private bool soloAttivi = true;
 
     private StudenteInput? modulo;
@@ -129,23 +163,38 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await Esegui(async () => genitori = await Api.Genitori());
+        filtroSede = SedeId;
+        await Esegui(async () =>
+        {
+            genitori = await Api.Genitori();
+            sedi = await Api.Sedi();
+        });
         await Carica();
     }
 
-    private Task Carica() => Esegui(async () => studenti = await Api.Studenti(cerca, soloAttivi));
+    private Task Carica() => Esegui(async () => studenti = await Api.Studenti(cerca, soloAttivi, filtroSede));
+
+    private Task CambiaSede(ChangeEventArgs e)
+    {
+        filtroSede = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        return Carica();
+    }
 
     private string NomeGenitore(int id) => genitori.FirstOrDefault(g => g.Id == id)?.NomeCompleto ?? $"#{id}";
 
     private void ApriNuovo()
     {
         idInModifica = null;
-        modulo = new StudenteInput();
+        Errore = null;
+        // Propone la sede del filtro, o l'unica sede attiva se ce n'è una sola.
+        var attive = sedi.Where(s => s.Attiva).ToList();
+        modulo = new StudenteInput { SedeId = filtroSede is > 0 ? filtroSede.Value : attive.Count == 1 ? attive[0].Id : 0 };
     }
 
     private void ApriModifica(StudenteDto s)
     {
         idInModifica = s.Id;
+        Errore = null;
         modulo = StudenteInput.Da(s);
     }
 

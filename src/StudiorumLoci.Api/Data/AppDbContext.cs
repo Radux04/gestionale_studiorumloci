@@ -3,11 +3,15 @@ using StudiorumLoci.Api.Domain.Common;
 using StudiorumLoci.Api.Domain.Crm;
 using StudiorumLoci.Api.Domain.Dipendenti;
 using StudiorumLoci.Api.Domain.Pagamenti;
+using StudiorumLoci.Api.Domain.Sedi;
 
 namespace StudiorumLoci.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    // Sedi
+    public DbSet<Sede> Sedi => Set<Sede>();
+
     // CRM
     public DbSet<Studente> Studenti => Set<Studente>();
     public DbSet<Genitore> Genitori => Set<Genitore>();
@@ -28,11 +32,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         // del gestionale restano raggiungibili esclusivamente tramite questa API.
         b.HasDefaultSchema("gestionale");
 
+        b.Entity<Sede>(e =>
+        {
+            e.Property(x => x.Nome).HasMaxLength(150);
+            e.Property(x => x.Cap).HasMaxLength(5);
+            e.Property(x => x.Comune).HasMaxLength(100);
+            e.Property(x => x.Provincia).HasMaxLength(2);
+            e.Property(x => x.Regione).HasMaxLength(50);
+        });
+
         b.Entity<Studente>(e =>
         {
             e.Property(x => x.Nome).HasMaxLength(100);
             e.Property(x => x.Cognome).HasMaxLength(100);
             e.HasMany(x => x.Genitori).WithMany(x => x.Studenti).UsingEntity("StudenteGenitore");
+            // Una sede con studenti non si può eliminare (va prima svuotata o disattivata).
+            e.HasOne(x => x.Sede).WithMany(x => x.Studenti).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<Genitore>(e =>

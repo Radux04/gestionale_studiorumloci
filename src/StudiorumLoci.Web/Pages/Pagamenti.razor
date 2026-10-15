@@ -106,6 +106,7 @@
 <Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuova quota" : "Modifica quota")" OnChiudi="() => modulo = null">
     @if (modulo is not null)
     {
+        <Avvisi Errore="@Errore" />
         <EditForm Model="modulo" OnValidSubmit="Salva">
             <DataAnnotationsValidator />
             <div class="mb-3">
@@ -170,6 +171,7 @@
     @if (daIncassare is not null)
     {
         <p><strong>@daIncassare.Studente</strong> · @daIncassare.Causale · <strong>@Testo.Euro(daIncassare.Importo)</strong></p>
+        <Avvisi Errore="@Errore" />
         <EditForm Model="incasso" OnValidSubmit="Incassa">
             <div class="row g-2 mb-3">
                 <div class="col-6">

@@ -1,15 +1,21 @@
 using StudiorumLoci.Api.Domain.Crm;
 using StudiorumLoci.Api.Domain.Dipendenti;
 using StudiorumLoci.Api.Domain.Pagamenti;
+using StudiorumLoci.Api.Domain.Sedi;
 
 namespace StudiorumLoci.Api.Contracts;
 
 /// <summary>Conversione entità → DTO condivisi (StudiorumLoci.Shared).</summary>
 public static class Mapping
 {
+    /// <remarks>Per il nome della sede richiede che <see cref="Studente.Sede"/> sia caricata.</remarks>
     public static StudenteDto ToDto(this Studente s) => new(
         s.Id, s.Nome, s.Cognome, s.DataNascita, s.Scuola, s.Classe, s.Note, s.Attivo,
-        s.Genitori.Select(g => g.Id).ToArray());
+        s.Genitori.Select(g => g.Id).ToArray(), s.SedeId, s.Sede?.Nome);
+
+    public static SedeDto ToDto(this Sede s, int numeroStudenti) => new(
+        s.Id, s.Nome, s.Indirizzo, s.Cap, s.Comune, s.Provincia, s.Regione,
+        s.Telefono, s.Email, s.Note, s.Attiva, numeroStudenti);
 
     public static GenitoreDto ToDto(this Genitore g) => new(
         g.Id, g.Nome, g.Cognome, g.Email, g.Telefono, g.CodiceFiscale, g.Indirizzo, g.Note,

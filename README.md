@@ -17,8 +17,9 @@ Il sito pubblico [studiorum-loci.vercel.app](https://studiorum-loci.vercel.app) 
 |---|---|
 | Panoramica: richieste nuove, studenti/dipendenti attivi, rette scadute, incassi del mese | `/` |
 | Richieste (lead): filtro per stato, storico contatti, conversione in genitore | `/crm/lead` |
-| Studenti: ricerca, anagrafica, collegamento ai genitori | `/crm/studenti` |
+| Studenti: ricerca, filtro per sede, anagrafica, collegamento ai genitori | `/crm/studenti` |
 | Genitori: anagrafica e storico contatti | `/crm/genitori` |
+| Sedi: elenco per regione, anagrafica, numero di studenti | `/sedi` |
 | Dipendenti: elenco e anagrafica | `/dipendenti` |
 | Scheda dipendente: turni del mese e compenso maturato | `/dipendenti/{id}` |
 | Pagamenti: quote, incassi, annullamenti, riepilogo mensile | `/pagamenti` |
@@ -42,7 +43,8 @@ src/StudiorumLoci.Api/
 
 | Modulo | Endpoint | Note |
 |---|---|---|
-| CRM – Studenti | `api/crm/studenti` | CRUD, `/{id}/disattiva`; la DELETE è rifiutata se lo studente ha pagamenti |
+| Sedi | `api/sedi` | CRUD, filtri `regione` e `soloAttive`; la DELETE è rifiutata se la sede ha studenti |
+| CRM – Studenti | `api/crm/studenti` | CRUD (sede obbligatoria), filtro `sedeId` (0 = senza sede), `/{id}/disattiva`; la DELETE è rifiutata se lo studente ha pagamenti |
 | CRM – Genitori | `api/crm/genitori` | CRUD (la DELETE elimina anche lo storico contatti) + `/{id}/interazioni` |
 | CRM – Lead | `api/crm/lead` | CRUD, `/{id}/stato`, `/{id}/converti`, `/{id}/interazioni` |
 | CRM – Storico contatti | `api/crm/interazioni/{id}` | modifica ed eliminazione |

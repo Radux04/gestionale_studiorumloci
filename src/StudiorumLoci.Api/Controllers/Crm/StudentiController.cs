@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using StudiorumLoci.Api.Contracts;
 using StudiorumLoci.Api.Data;
 using StudiorumLoci.Api.Domain.Crm;
+using StudiorumLoci.Api.Domain.Sedi;
 
 namespace StudiorumLoci.Api.Controllers.Crm;
 
@@ -10,11 +11,14 @@ namespace StudiorumLoci.Api.Controllers.Crm;
 [Route("api/crm/studenti")]
 public class StudentiController(AppDbContext db) : ControllerBase
 {
+    /// <param name="sedeId">Filtra per sede; 0 = studenti senza sede assegnata.</param>
     [HttpGet]
-    public async Task<IEnumerable<StudenteDto>> Elenco(string? cerca, bool soloAttivi = true)
+    public async Task<IEnumerable<StudenteDto>> Elenco(string? cerca, int? sedeId, bool soloAttivi = true)
     {
-        var query = db.Studenti.Include(s => s.Genitori).AsNoTracking();
+        var query = db.Studenti.Include(s => s.Genitori).Include(s => s.Sede).AsNoTracking();
         if (soloAttivi) query = query.Where(s => s.Attivo);
+        if (sedeId == 0) query = query.Where(s => s.SedeId == null);
+        else if (sedeId is not null) query = query.Where(s => s.SedeId == sedeId);
         if (!string.IsNullOrWhiteSpace(cerca))
             query = query.Where(s => s.Nome.Contains(cerca) || s.Cognome.Contains(cerca));
 
@@ -25,15 +29,19 @@ public class StudentiController(AppDbContext db) : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<StudenteDto>> Dettaglio(int id)
     {
-        var studente = await db.Studenti.Include(s => s.Genitori).AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
+        var studente = await db.Studenti.Include(s => s.Genitori).Include(s => s.Sede).AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == id);
         return studente is null ? NotFound() : studente.ToDto();
     }
 
     [HttpPost]
     public async Task<ActionResult<StudenteDto>> Crea(StudenteInput input)
     {
+        var sede = await db.Sedi.FindAsync(input.SedeId);
+        if (sede is null) return ValidationProblem("Seleziona una sede esistente.");
+
         var studente = new Studente { Nome = input.Nome, Cognome = input.Cognome };
-        await Applica(studente, input);
+        await Applica(studente, input, sede);
         db.Studenti.Add(studente);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(Dettaglio), new { id = studente.Id }, studente.ToDto());
@@ -42,10 +50,13 @@ public class StudentiController(AppDbContext db) : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult<StudenteDto>> Modifica(int id, StudenteInput input)
     {
+        var sede = await db.Sedi.FindAsync(input.SedeId);
+        if (sede is null) return ValidationProblem("Seleziona una sede esistente.");
+
         var studente = await db.Studenti.Include(s => s.Genitori).FirstOrDefaultAsync(s => s.Id == id);
         if (studente is null) return NotFound();
 
-        await Applica(studente, input);
+        await Applica(studente, input, sede);
         await db.SaveChangesAsync();
         return studente.ToDto();
     }
@@ -79,10 +90,11 @@ public class StudentiController(AppDbContext db) : ControllerBase
         return NoContent();
     }
 
-    private async Task Applica(Studente s, StudenteInput input)
+    private async Task Applica(Studente s, StudenteInput input, Sede sede)
     {
         s.Nome = input.Nome;
         s.Cognome = input.Cognome;
+        s.Sede = sede;
         s.DataNascita = input.DataNascita;
         s.Scuola = input.Scuola;
         s.Classe = input.Classe;

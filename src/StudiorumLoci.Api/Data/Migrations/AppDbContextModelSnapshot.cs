@@ -208,7 +208,12 @@ namespace StudiorumLoci.Api.Data.Migrations
                     b.Property<string>("Scuola")
                         .HasColumnType("text");
 
+                    b.Property<int?>("SedeId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SedeId");
 
                     b.ToTable("Studenti", "gestionale");
                 });
@@ -382,6 +387,64 @@ namespace StudiorumLoci.Api.Data.Migrations
                     b.ToTable("RicevuteFile", "gestionale");
                 });
 
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Sedi.Sede", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Attiva")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Cap")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("Comune")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatoIl")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Indirizzo")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ModificatoIl")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provincia")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<string>("Regione")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Telefono")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Sedi", "gestionale");
+                });
+
             modelBuilder.Entity("StudenteGenitore", b =>
                 {
                     b.HasOne("StudiorumLoci.Api.Domain.Crm.Genitore", null)
@@ -422,6 +485,16 @@ namespace StudiorumLoci.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Genitore");
+                });
+
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Crm.Studente", b =>
+                {
+                    b.HasOne("StudiorumLoci.Api.Domain.Sedi.Sede", "Sede")
+                        .WithMany("Studenti")
+                        .HasForeignKey("SedeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Sede");
                 });
 
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Dipendenti.Turno", b =>
@@ -473,6 +546,11 @@ namespace StudiorumLoci.Api.Data.Migrations
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Dipendenti.Dipendente", b =>
                 {
                     b.Navigation("Turni");
+                });
+
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Sedi.Sede", b =>
+                {
+                    b.Navigation("Studenti");
                 });
 #pragma warning restore 612, 618
         }

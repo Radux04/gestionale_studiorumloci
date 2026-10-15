@@ -1,0 +1,182 @@
+@page "/sedi"
+@inherits PaginaBase
+
+<PageTitle>Sedi · Studiorum Loci</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Sedi</h1>
+    <button class="btn btn-primary" @onclick="ApriNuova"><i class="bi bi-plus-lg"></i> Nuova sede</button>
+</div>
+
+<Avvisi Errore="@(modulo is null ? Errore : null)" Conferma="@Conferma" />
+
+<div class="row g-2 align-items-center mb-3">
+    <div class="col-sm-5 col-lg-3">
+        <select class="form-select" value="@(filtroRegione ?? "")" @onchange="CambiaRegione">
+            <option value="">Tutte le regioni</option>
+            @foreach (var r in Regioni.Elenco) { <option value="@r">@r</option> }
+        </select>
+    </div>
+    <div class="col-auto">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="soloAttive" @bind="soloAttive" @bind:after="Carica" />
+            <label class="form-check-label" for="soloAttive">Solo attive</label>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Sede</th><th>Indirizzo</th><th>Regione</th><th>Contatti</th><th class="text-end">Studenti attivi</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var s in sedi)
+            {
+                <tr class="@(s.Attiva ? "" : "text-body-secondary")">
+                    <td>
+                        <strong>@s.Nome</strong>
+                        @if (!s.Attiva) { <span class="badge text-bg-secondary ms-1">Non attiva</span> }
+                    </td>
+                    <td>
+                        @if (s.Indirizzo is not null) { <div>@s.Indirizzo</div> }
+                        <div class="@(s.Indirizzo is null ? "" : "small text-body-secondary")">@s.Cap @s.Localita</div>
+                    </td>
+                    <td>@s.Regione</td>
+                    <td>
+                        @if (s.Telefono is not null) { <div><i class="bi bi-telephone"></i> @s.Telefono</div> }
+                        @if (s.Email is not null) { <div><i class="bi bi-envelope"></i> @s.Email</div> }
+                    </td>
+                    <td class="text-end"><a href="crm/studenti?sedeId=@s.Id">@s.NumeroStudenti</a></td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(s)"><i class="bi bi-pencil"></i></button>
+                        <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => Elimina(s)" />
+                    </td>
+                </tr>
+            }
+            @if (sedi.Count == 0 && !Caricamento)
+            {
+                <tr><td colspan="6" class="text-body-secondary">Nessuna sede. Aggiungi la prima con «Nuova sede».</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuova sede" : "Modifica sede")" Grande OnChiudi="() => modulo = null">
+    @if (modulo is not null)
+    {
+        <Avvisi Errore="@Errore" />
+        <EditForm Model="modulo" OnValidSubmit="Salva">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Nome della sede</label>
+                <InputText class="form-control" placeholder="es. Studiorum Loci Pescara Centro" @bind-Value="modulo.Nome" />
+                <ValidationMessage For="() => modulo.Nome" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Indirizzo</label>
+                <InputText class="form-control" placeholder="es. Via Roma 12" @bind-Value="modulo.Indirizzo" />
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-3">
+                    <label class="form-label">CAP</label>
+                    <InputText class="form-control" maxlength="5" inputmode="numeric" @bind-Value="modulo.Cap" />
+                    <ValidationMessage For="() => modulo.Cap" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label">Comune</label>
+                    <InputText class="form-control" @bind-Value="modulo.Comune" />
+                    <ValidationMessage For="() => modulo.Comune" />
+                </div>
+                <div class="col-sm-3">
+                    <label class="form-label">Provincia</label>
+                    <InputText class="form-control text-uppercase" maxlength="2" placeholder="PE" @bind-Value="modulo.Provincia" />
+                    <ValidationMessage For="() => modulo.Provincia" />
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-4">
+                    <label class="form-label">Regione</label>
+                    <InputSelect class="form-select" @bind-Value="modulo.Regione">
+                        <option value="">— seleziona —</option>
+                        @foreach (var r in Regioni.Elenco) { <option value="@r">@r</option> }
+                    </InputSelect>
+                    <ValidationMessage For="() => modulo.Regione" />
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label">Telefono</label>
+                    <InputText class="form-control" type="tel" @bind-Value="modulo.Telefono" />
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label">Email</label>
+                    <InputText class="form-control" type="email" @bind-Value="modulo.Email" />
+                    <ValidationMessage For="() => modulo.Email" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Note</label>
+                <InputTextArea class="form-control" rows="2" placeholder="Orari, referente, accesso…" @bind-Value="modulo.Note" />
+            </div>
+            <div class="form-check mb-3">
+                <InputCheckbox class="form-check-input" id="attiva" @bind-Value="modulo.Attiva" />
+                <label class="form-check-label" for="attiva">Sede attiva (selezionabile per i nuovi studenti)</label>
+            </div>
+            <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
+        </EditForm>
+    }
+</Finestra>
+
+@code {
+    private List<SedeDto> sedi = [];
+    private string? filtroRegione;
+    private bool soloAttive;
+
+    private SedeInput? modulo;
+    private int? idInModifica;
+
+    protected override Task OnInitializedAsync() => Carica();
+
+    private Task Carica() => Esegui(async () => sedi = await Api.Sedi(filtroRegione, soloAttive));
+
+    private Task CambiaRegione(ChangeEventArgs e)
+    {
+        filtroRegione = e.Value?.ToString() is { Length: > 0 } r ? r : null;
+        return Carica();
+    }
+
+    private void ApriNuova()
+    {
+        idInModifica = null;
+        Errore = null;
+        // Il cliente oggi lavora in Abruzzo: lo propongo come regione predefinita.
+        modulo = new SedeInput { Regione = filtroRegione ?? "Abruzzo" };
+    }
+
+    private void ApriModifica(SedeDto s)
+    {
+        idInModifica = s.Id;
+        Errore = null;
+        modulo = SedeInput.Da(s);
+    }
+
+    private async Task Salva()
+    {
+        var ok = await Esegui(() => idInModifica is { } id ? Api.ModificaSede(id, modulo!) : Api.CreaSede(modulo!));
+        if (ok)
+        {
+            var nome = modulo!.Nome;
+            modulo = null;
+            await Carica();
+            Conferma = $"Sede «{nome}» salvata.";
+        }
+    }
+
+    private async Task Elimina(SedeDto s)
+    {
+        if (await Esegui(() => Api.EliminaSede(s.Id)))
+        {
+            await Carica();
+            Conferma = $"Sede «{s.Nome}» eliminata.";
+        }
+    }
+}
