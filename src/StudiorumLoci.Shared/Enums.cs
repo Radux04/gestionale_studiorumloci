@@ -15,4 +15,4 @@ public enum TipoContratto { Dipendente, Collaborazione, PartitaIva, PrestazioneO
 // Pagamenti
 public enum StatoPagamento { DaPagare, Pagato, Annullato }
 
-public enum MetodoPagamento { Contanti, Bonifico, Carta, Pos, Satispay, Altro }
+public enum MetodoPagamento { Contanti, Bonifico}
