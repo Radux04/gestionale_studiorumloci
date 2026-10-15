@@ -49,14 +49,26 @@ public class DipendentiController(AppDbContext db) : ControllerBase
     }
 
     /// <summary>Cessa il rapporto: il dipendente non compare più tra gli attivi ma i turni restano.</summary>
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Disattiva(int id)
+    [HttpPost("{id:int}/cessa")]
+    public async Task<IActionResult> Cessa(int id)
     {
         var dipendente = await db.Dipendenti.FindAsync(id);
         if (dipendente is null) return NotFound();
 
         dipendente.Attivo = false;
         dipendente.DataCessazione ??= DateOnly.FromDateTime(DateTime.Today);
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    /// <summary>Elimina definitivamente il dipendente insieme a tutti i suoi turni.</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Elimina(int id)
+    {
+        var dipendente = await db.Dipendenti.FindAsync(id);
+        if (dipendente is null) return NotFound();
+
+        db.Dipendenti.Remove(dipendente);
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -81,6 +93,21 @@ public class DipendentiController(AppDbContext db) : ControllerBase
 
         var turno = new Turno { DipendenteId = id, Inizio = input.Inizio, Fine = input.Fine, Note = input.Note };
         db.Turni.Add(turno);
+        await db.SaveChangesAsync();
+        return turno.ToDto();
+    }
+
+    [HttpPut("{id:int}/turni/{turnoId:int}")]
+    public async Task<ActionResult<TurnoDto>> ModificaTurno(int id, int turnoId, TurnoInput input)
+    {
+        if (input.Fine <= input.Inizio) return ValidationProblem("La fine del turno deve essere successiva all'inizio.");
+
+        var turno = await db.Turni.FirstOrDefaultAsync(t => t.Id == turnoId && t.DipendenteId == id);
+        if (turno is null) return NotFound();
+
+        turno.Inizio = input.Inizio;
+        turno.Fine = input.Fine;
+        turno.Note = input.Note;
         await db.SaveChangesAsync();
         return turno.ToDto();
     }

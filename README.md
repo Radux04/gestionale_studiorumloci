@@ -42,12 +42,13 @@ src/StudiorumLoci.Api/
 
 | Modulo | Endpoint | Note |
 |---|---|---|
-| CRM – Studenti | `api/crm/studenti` | CRUD, la DELETE disattiva |
-| CRM – Genitori | `api/crm/genitori` | CRUD + `/{id}/interazioni` |
-| CRM – Lead | `api/crm/lead` | elenco per stato, `/{id}/stato`, `/{id}/converti`, `/{id}/interazioni` |
+| CRM – Studenti | `api/crm/studenti` | CRUD, `/{id}/disattiva`; la DELETE è rifiutata se lo studente ha pagamenti |
+| CRM – Genitori | `api/crm/genitori` | CRUD (la DELETE elimina anche lo storico contatti) + `/{id}/interazioni` |
+| CRM – Lead | `api/crm/lead` | CRUD, `/{id}/stato`, `/{id}/converti`, `/{id}/interazioni` |
+| CRM – Storico contatti | `api/crm/interazioni/{id}` | modifica ed eliminazione |
 | Sito pubblico | `POST api/pubblico/contatti` | form contatti → lead (rate limit 5/min per IP) |
-| Dipendenti | `api/dipendenti` | CRUD, `/{id}/turni`, `/{id}/compenso?da=&a=` |
-| Pagamenti | `api/pagamenti` | CRUD, `/{id}/incasso`, `/{id}/annulla`, `/riepilogo?anno=&mese=` |
+| Dipendenti | `api/dipendenti` | CRUD (la DELETE elimina anche i turni), `/{id}/cessa`, `/{id}/turni` (CRUD), `/{id}/compenso?da=&a=` |
+| Pagamenti | `api/pagamenti` | CRUD, `/{id}/incasso`, `/{id}/annulla`, `/{id}/ripristina`, `/riepilogo?anno=&mese=` |
 
 ## Avvio in locale
 

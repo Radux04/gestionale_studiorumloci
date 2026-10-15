@@ -68,6 +68,11 @@ public class LeadInput
     public string? Telefono { get; set; }
     public string? Messaggio { get; set; }
     public FonteLead Fonte { get; set; } = FonteLead.Telefono;
+
+    public static LeadInput Da(LeadDto l) => new()
+    {
+        Nome = l.Nome, Email = l.Email, Telefono = l.Telefono, Messaggio = l.Messaggio, Fonte = l.Fonte,
+    };
 }
 
 /// <summary>Payload del form contatti del sito pubblico.</summary>

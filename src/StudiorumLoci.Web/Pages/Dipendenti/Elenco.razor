@@ -42,6 +42,7 @@
                     <td class="text-end text-nowrap">
                         <a class="btn btn-sm btn-outline-secondary" href="dipendenti/@d.Id" title="Turni e compensi"><i class="bi bi-calendar-week"></i></a>
                         <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(d)"><i class="bi bi-pencil"></i></button>
+                        <BottoneConferma Testo="Elimina (anche i turni)" Icona="bi-trash" OnConferma="() => Elimina(d)" />
                     </td>
                 </tr>
             }
@@ -99,6 +100,15 @@
             modulo = null;
             await Carica();
             Conferma = $"{nome} salvato.";
+        }
+    }
+
+    private async Task Elimina(DipendenteDto d)
+    {
+        if (await Esegui(() => Api.EliminaDipendente(d.Id)))
+        {
+            await Carica();
+            Conferma = $"{d.NomeCompleto} eliminato.";
         }
     }
 }

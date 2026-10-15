@@ -49,7 +49,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.Genitore).WithMany().OnDelete(DeleteBehavior.SetNull);
         });
 
-        b.Entity<Interazione>(e => e.Property(x => x.Tipo).HasConversion<string>());
+        b.Entity<Interazione>(e =>
+        {
+            e.Property(x => x.Tipo).HasConversion<string>();
+            // Lo storico contatti appartiene al lead/genitore: si elimina insieme a loro.
+            e.HasOne(x => x.Lead).WithMany(x => x.Interazioni).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Genitore).WithMany(x => x.Interazioni).OnDelete(DeleteBehavior.Cascade);
+        });
 
         b.Entity<Dipendente>(e =>
         {

@@ -43,8 +43,9 @@
                         <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(s)"><i class="bi bi-pencil"></i></button>
                         @if (s.Attivo)
                         {
-                            <BottoneConferma Testo="Disattiva" Icona="bi-archive" OnConferma="() => Disattiva(s)" />
+                            <BottoneConferma Testo="Disattiva" Icona="bi-archive" Classe="btn-outline-secondary" OnConferma="() => Disattiva(s)" />
                         }
+                        <BottoneConferma Testo="Elimina definitivamente" Icona="bi-trash" OnConferma="() => Elimina(s)" />
                     </td>
                 </tr>
             }
@@ -170,5 +171,14 @@
     private async Task Disattiva(StudenteDto s)
     {
         if (await Esegui(() => Api.DisattivaStudente(s.Id))) await Carica();
+    }
+
+    private async Task Elimina(StudenteDto s)
+    {
+        if (await Esegui(() => Api.EliminaStudente(s.Id)))
+        {
+            await Carica();
+            Conferma = $"{s.NomeCompleto} eliminato.";
+        }
     }
 }

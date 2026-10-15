@@ -1,0 +1,127 @@
+@* Storico contatti (telefonate, colloqui…) di un lead o di un genitore: elenco, aggiunta, modifica, eliminazione. *@
+@inject ApiClient Api
+
+<Avvisi Errore="@errore" />
+
+<ul class="list-group mb-3">
+    @foreach (var i in interazioni)
+    {
+        <li class="list-group-item">
+            @if (inModifica == i.Id)
+            {
+                <EditForm Model="modifica" OnValidSubmit="() => SalvaModifica(i.Id)" class="row g-2">
+                    <DataAnnotationsValidator />
+                    <div class="col-sm-3">
+                        <InputSelect class="form-select form-select-sm" @bind-Value="modifica.Tipo">
+                            @foreach (var t in Enum.GetValues<TipoInterazione>()) { <option value="@t">@Testo.Di(t)</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="col-sm-6">
+                        <InputText class="form-control form-control-sm" @bind-Value="modifica.Descrizione" />
+                        <ValidationMessage For="() => modifica.Descrizione" />
+                    </div>
+                    <div class="col-sm-3 d-flex gap-1">
+                        <button class="btn btn-sm btn-primary flex-fill">Salva</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => inModifica = null">Annulla</button>
+                    </div>
+                </EditForm>
+            }
+            else
+            {
+                <div class="d-flex justify-content-between gap-2">
+                    <div>
+                        <div class="small text-body-secondary">@Testo.DataOra(i.Data) · @Testo.Di(i.Tipo)</div>
+                        @i.Descrizione
+                    </div>
+                    <div class="text-nowrap">
+                        <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(i)"><i class="bi bi-pencil"></i></button>
+                        <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => Elimina(i)" />
+                    </div>
+                </div>
+            }
+        </li>
+    }
+    @if (interazioni.Count == 0) { <li class="list-group-item text-body-secondary">Nessun contatto registrato.</li> }
+</ul>
+
+<EditForm Model="nuova" OnValidSubmit="AggiungiNuova" class="row g-2">
+    <DataAnnotationsValidator />
+    <div class="col-sm-3">
+        <InputSelect class="form-select" @bind-Value="nuova.Tipo">
+            @foreach (var t in Enum.GetValues<TipoInterazione>()) { <option value="@t">@Testo.Di(t)</option> }
+        </InputSelect>
+    </div>
+    <div class="col-sm-7">
+        <InputText class="form-control" placeholder="@Suggerimento" @bind-Value="nuova.Descrizione" />
+        <ValidationMessage For="() => nuova.Descrizione" />
+    </div>
+    <div class="col-sm-2 d-grid">
+        <button class="btn btn-outline-primary">Aggiungi</button>
+    </div>
+</EditForm>
+
+@code {
+    /// <summary>Identifica il lead/genitore mostrato: quando cambia, lo storico viene ricaricato.</summary>
+    [Parameter, EditorRequired] public int Chiave { get; set; }
+    [Parameter, EditorRequired] public Func<Task<List<InterazioneDto>>> Carica { get; set; } = null!;
+    [Parameter, EditorRequired] public Func<InterazioneInput, Task> Aggiungi { get; set; } = null!;
+    /// <summary>Avvisa la pagina dopo un'aggiunta (es. il lead passa da "Nuovo" a "Contattato").</summary>
+    [Parameter] public EventCallback OnAggiunto { get; set; }
+    [Parameter] public string Suggerimento { get; set; } = "Es. richiamata, fissato colloquio giovedì";
+
+    private List<InterazioneDto> interazioni = [];
+    private InterazioneInput nuova = new();
+    private InterazioneInput modifica = new();
+    private int? inModifica;
+    private int? caricataPer;
+    private string? errore;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (caricataPer == Chiave) return;
+        caricataPer = Chiave;
+        nuova = new();
+        inModifica = null;
+        await Esegui(Ricarica);
+    }
+
+    private async Task Ricarica() => interazioni = await Carica();
+
+    private async Task AggiungiNuova()
+    {
+        if (await Esegui(async () => { await Aggiungi(nuova); await Ricarica(); }))
+        {
+            nuova = new();
+            await OnAggiunto.InvokeAsync();
+        }
+    }
+
+    private void ApriModifica(InterazioneDto i)
+    {
+        inModifica = i.Id;
+        modifica = new InterazioneInput { Tipo = i.Tipo, Descrizione = i.Descrizione };
+    }
+
+    private async Task SalvaModifica(int id)
+    {
+        if (await Esegui(async () => { await Api.ModificaInterazione(id, modifica); await Ricarica(); }))
+            inModifica = null;
+    }
+
+    private Task Elimina(InterazioneDto i) => Esegui(async () => { await Api.EliminaInterazione(i.Id); await Ricarica(); });
+
+    private async Task<bool> Esegui(Func<Task> azione)
+    {
+        errore = null;
+        try
+        {
+            await azione();
+            return true;
+        }
+        catch (ApiException ex)
+        {
+            errore = ex.Message;
+            return false;
+        }
+    }
+}

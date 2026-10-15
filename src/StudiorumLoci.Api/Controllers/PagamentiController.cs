@@ -56,7 +56,6 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
     {
         var pagamento = await Trova(id);
         if (pagamento is null) return NotFound();
-        if (pagamento.Stato != StatoPagamento.DaPagare) return Conflict("Solo i pagamenti da pagare sono modificabili.");
         if (!await db.Studenti.AnyAsync(s => s.Id == input.StudenteId))
             return ValidationProblem($"Studente {input.StudenteId} inesistente.");
 
@@ -95,6 +94,31 @@ public class PagamentiController(AppDbContext db, TimeProvider clock) : Controll
         pagamento.Stato = StatoPagamento.Annullato;
         await db.SaveChangesAsync();
         return pagamento.ToDto(Oggi);
+    }
+
+    /// <summary>Riporta a "da pagare" un pagamento incassato o annullato per errore.</summary>
+    [HttpPost("{id:int}/ripristina")]
+    public async Task<ActionResult<PagamentoDto>> Ripristina(int id)
+    {
+        var pagamento = await Trova(id);
+        if (pagamento is null) return NotFound();
+
+        pagamento.Stato = StatoPagamento.DaPagare;
+        pagamento.DataPagamento = null;
+        pagamento.Metodo = null;
+        await db.SaveChangesAsync();
+        return pagamento.ToDto(Oggi);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Elimina(int id)
+    {
+        var pagamento = await db.Pagamenti.FindAsync(id);
+        if (pagamento is null) return NotFound();
+
+        db.Pagamenti.Remove(pagamento);
+        await db.SaveChangesAsync();
+        return NoContent();
     }
 
     /// <summary>Riepilogo delle quote con scadenza nel mese indicato.</summary>

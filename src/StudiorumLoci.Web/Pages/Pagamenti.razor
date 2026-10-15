@@ -60,9 +60,17 @@
                         @if (p.Stato == StatoPagamento.DaPagare)
                         {
                             <button class="btn btn-sm btn-success" @onclick="() => ApriIncasso(p)"><i class="bi bi-check-lg"></i> Incassa</button>
-                            <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(p)"><i class="bi bi-pencil"></i></button>
-                            <BottoneConferma Testo="Annulla quota" Icona="bi-x-lg" OnConferma="() => Annulla(p)" />
                         }
+                        <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriModifica(p)"><i class="bi bi-pencil"></i></button>
+                        @if (p.Stato == StatoPagamento.DaPagare)
+                        {
+                            <BottoneConferma Testo="Annulla quota" Icona="bi-x-lg" Classe="btn-outline-secondary" OnConferma="() => Annulla(p)" />
+                        }
+                        else
+                        {
+                            <BottoneConferma Testo="Riporta a «da pagare»" Icona="bi-arrow-counterclockwise" Classe="btn-outline-secondary" OnConferma="() => Ripristina(p)" />
+                        }
+                        <BottoneConferma Testo="Elimina definitivamente" Icona="bi-trash" OnConferma="() => Elimina(p)" />
                     </td>
                 </tr>
             }
@@ -243,5 +251,19 @@
     private async Task Annulla(PagamentoDto p)
     {
         if (await Esegui(() => Api.AnnullaPagamento(p.Id))) await Carica();
+    }
+
+    private async Task Ripristina(PagamentoDto p)
+    {
+        if (await Esegui(() => Api.RipristinaPagamento(p.Id))) await Carica();
+    }
+
+    private async Task Elimina(PagamentoDto p)
+    {
+        if (await Esegui(() => Api.EliminaPagamento(p.Id)))
+        {
+            await Carica();
+            Conferma = $"Quota «{p.Causale}» di {p.Studente} eliminata.";
+        }
     }
 }

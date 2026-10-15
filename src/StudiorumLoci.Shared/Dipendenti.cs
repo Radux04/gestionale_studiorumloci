@@ -40,6 +40,8 @@ public class TurnoInput
     public DateTime Inizio { get; set; } = DateTime.Today.AddHours(14);
     public DateTime Fine { get; set; } = DateTime.Today.AddHours(18);
     public string? Note { get; set; }
+
+    public static TurnoInput Da(TurnoDto t) => new() { Inizio = t.Inizio, Fine = t.Fine, Note = t.Note };
 }
 
 public record CompensoDto(int DipendenteId, DateOnly Da, DateOnly A, decimal OreTotali, decimal CompensoOrario, decimal Totale);

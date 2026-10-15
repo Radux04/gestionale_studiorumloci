@@ -8,7 +8,7 @@
     <button class="btn btn-primary" @onclick="ApriNuovo"><i class="bi bi-plus-lg"></i> Nuova richiesta</button>
 </div>
 
-<Avvisi Errore="@Errore" Conferma="@Conferma" />
+<Avvisi Errore="@(selezionato is null && modulo is null ? Errore : null)" Conferma="@Conferma" />
 
 <div class="row g-2 mb-3">
     <div class="col-sm-4 col-lg-3">
@@ -33,8 +33,9 @@
                     </td>
                     <td>@Testo.Di(l.Fonte)</td>
                     <td><span class="badge @Testo.BadgeLead(l.Stato)">@Testo.Di(l.Stato)</span></td>
-                    <td class="text-end">
+                    <td class="text-end text-nowrap">
                         <button class="btn btn-sm btn-outline-primary" @onclick="() => ApriDettaglio(l)">Apri</button>
+                        <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => Elimina(l)" />
                     </td>
                 </tr>
             }
@@ -46,37 +47,38 @@
     </table>
 </div>
 
-@* ---- Nuovo lead ---- *@
-<Finestra Visibile="nuovo is not null" Titolo="Nuova richiesta" OnChiudi="() => nuovo = null">
-    @if (nuovo is not null)
+@* ---- Nuovo lead / modifica dati ---- *@
+<Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuova richiesta" : "Modifica richiesta")" OnChiudi="ChiudiModulo">
+    @if (modulo is not null)
     {
-        <EditForm Model="nuovo" OnValidSubmit="SalvaNuovo">
+        <Avvisi Errore="@Errore" />
+        <EditForm Model="modulo" OnValidSubmit="SalvaModulo">
             <DataAnnotationsValidator />
             <div class="mb-3">
                 <label class="form-label">Nome</label>
-                <InputText class="form-control" @bind-Value="nuovo.Nome" />
-                <ValidationMessage For="() => nuovo.Nome" />
+                <InputText class="form-control" @bind-Value="modulo.Nome" />
+                <ValidationMessage For="() => modulo.Nome" />
             </div>
             <div class="row g-2 mb-3">
                 <div class="col-sm-6">
                     <label class="form-label">Email</label>
-                    <InputText class="form-control" @bind-Value="nuovo.Email" />
-                    <ValidationMessage For="() => nuovo.Email" />
+                    <InputText class="form-control" @bind-Value="modulo.Email" />
+                    <ValidationMessage For="() => modulo.Email" />
                 </div>
                 <div class="col-sm-6">
                     <label class="form-label">Telefono</label>
-                    <InputText class="form-control" @bind-Value="nuovo.Telefono" />
+                    <InputText class="form-control" @bind-Value="modulo.Telefono" />
                 </div>
             </div>
             <div class="mb-3">
                 <label class="form-label">Fonte</label>
-                <InputSelect class="form-select" @bind-Value="nuovo.Fonte">
+                <InputSelect class="form-select" @bind-Value="modulo.Fonte">
                     @foreach (var f in Enum.GetValues<FonteLead>()) { <option value="@f">@Testo.Di(f)</option> }
                 </InputSelect>
             </div>
             <div class="mb-3">
                 <label class="form-label">Messaggio / note</label>
-                <InputTextArea class="form-control" rows="3" @bind-Value="nuovo.Messaggio" />
+                <InputTextArea class="form-control" rows="3" @bind-Value="modulo.Messaggio" />
             </div>
             <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
         </EditForm>
@@ -84,10 +86,15 @@
 </Finestra>
 
 @* ---- Dettaglio lead ---- *@
-<Finestra Visibile="selezionato is not null" Titolo="@(selezionato?.Nome ?? "")" Grande OnChiudi="ChiudiDettaglio">
+<Finestra Visibile="selezionato is not null && modulo is null" Titolo="@(selezionato?.Nome ?? "")" Grande OnChiudi="ChiudiDettaglio">
     @if (selezionato is not null)
     {
         <Avvisi Errore="@Errore" />
+
+        <div class="d-flex justify-content-end gap-2 mb-2">
+            <button class="btn btn-sm btn-outline-primary" @onclick="() => ApriModifica(selezionato)"><i class="bi bi-pencil"></i> Modifica dati</button>
+            <BottoneConferma Testo="Elimina richiesta" OnConferma="() => Elimina(selezionato)" />
+        </div>
 
         <dl class="row mb-3">
             <dt class="col-sm-3">Ricevuta</dt><dd class="col-sm-9">@Testo.DataOra(selezionato.CreatoIl) · @Testo.Di(selezionato.Fonte)</dd>
@@ -114,36 +121,14 @@
         </dl>
 
         <h6>Storico contatti</h6>
-        <ul class="list-group mb-3">
-            @foreach (var i in interazioni)
-            {
-                <li class="list-group-item">
-                    <div class="small text-body-secondary">@Testo.DataOra(i.Data) · @Testo.Di(i.Tipo)</div>
-                    @i.Descrizione
-                </li>
-            }
-            @if (interazioni.Count == 0) { <li class="list-group-item text-body-secondary">Nessun contatto registrato.</li> }
-        </ul>
-
-        <EditForm Model="nuovaInterazione" OnValidSubmit="AggiungiInterazione" class="row g-2 mb-4">
-            <DataAnnotationsValidator />
-            <div class="col-sm-3">
-                <InputSelect class="form-select" @bind-Value="nuovaInterazione.Tipo">
-                    @foreach (var t in Enum.GetValues<TipoInterazione>()) { <option value="@t">@Testo.Di(t)</option> }
-                </InputSelect>
-            </div>
-            <div class="col-sm-7">
-                <InputText class="form-control" placeholder="Es. richiamata, fissato colloquio giovedì" @bind-Value="nuovaInterazione.Descrizione" />
-                <ValidationMessage For="() => nuovaInterazione.Descrizione" />
-            </div>
-            <div class="col-sm-2 d-grid">
-                <button class="btn btn-outline-primary" disabled="@Caricamento">Aggiungi</button>
-            </div>
-        </EditForm>
+        <StoricoContatti Chiave="selezionato.Id"
+                         Carica="() => Api.InterazioniLead(selezionato.Id)"
+                         Aggiungi="i => Api.AggiungiInterazioneLead(selezionato.Id, i)"
+                         OnAggiunto="AggiornaSelezionato" />
 
         @if (selezionato.Stato != StatoLead.Convertito)
         {
-            <h6>Converti in genitore</h6>
+            <h6 class="mt-4">Converti in genitore</h6>
             <p class="small text-body-secondary">Crea l'anagrafica del genitore nel CRM. Gli studenti si aggiungono poi dalla pagina Studenti.</p>
             <EditForm Model="conversione" OnValidSubmit="Converti" class="row g-2">
                 <DataAnnotationsValidator />
@@ -167,10 +152,9 @@
     private List<LeadDto> lead = [];
     private StatoLead? filtroStato;
 
-    private LeadInput? nuovo;
+    private LeadInput? modulo;
+    private int? idInModifica;
     private LeadDto? selezionato;
-    private List<InterazioneDto> interazioni = [];
-    private InterazioneInput nuovaInterazione = new();
     private GenitoreInput conversione = new();
 
     protected override Task OnInitializedAsync() => Carica();
@@ -183,21 +167,41 @@
         return Carica();
     }
 
-    private void ApriNuovo() => nuovo = new LeadInput();
-
-    private async Task SalvaNuovo()
+    private void ApriNuovo()
     {
-        if (await Esegui(() => Api.CreaLead(nuovo!), "Richiesta registrata."))
-        {
-            nuovo = null;
-            await Carica();
-        }
+        idInModifica = null;
+        modulo = new LeadInput();
     }
 
-    private async Task ApriDettaglio(LeadDto l)
+    private void ApriModifica(LeadDto l)
+    {
+        idInModifica = l.Id;
+        modulo = LeadInput.Da(l);
+    }
+
+    private void ChiudiModulo()
+    {
+        modulo = null;
+        Errore = null;
+    }
+
+    private async Task SalvaModulo()
+    {
+        LeadDto? salvato = null;
+        var ok = await Esegui(async () =>
+            salvato = idInModifica is { } id ? await Api.ModificaLead(id, modulo!) : await Api.CreaLead(modulo!));
+        if (!ok) return;
+
+        modulo = null;
+        if (selezionato is not null) selezionato = salvato;
+        await Carica();
+        Conferma = idInModifica is null ? "Richiesta registrata." : "Dati aggiornati.";
+    }
+
+    private void ApriDettaglio(LeadDto l)
     {
         selezionato = l;
-        nuovaInterazione = new();
+        Errore = null;
         // Proposta: prima parola = nome, il resto = cognome.
         var parti = l.Nome.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         conversione = new GenitoreInput
@@ -207,7 +211,6 @@
             Email = l.Email,
             Telefono = l.Telefono,
         };
-        await Esegui(async () => interazioni = await Api.InterazioniLead(l.Id));
     }
 
     private async Task ChiudiDettaglio()
@@ -222,28 +225,28 @@
         selezionato = await Api.CambiaStatoLead(selezionato!.Id, stato);
     });
 
-    private async Task AggiungiInterazione()
+    /// <summary>Dopo un nuovo contatto l'API porta il lead da "Nuovo" a "Contattato".</summary>
+    private Task AggiornaSelezionato() => Esegui(async () =>
+        selezionato = (await Api.Lead()).FirstOrDefault(x => x.Id == selezionato!.Id) ?? selezionato);
+
+    private async Task Elimina(LeadDto l)
     {
-        var id = selezionato!.Id;
-        if (await Esegui(() => Api.AggiungiInterazioneLead(id, nuovaInterazione)))
+        if (await Esegui(() => Api.EliminaLead(l.Id)))
         {
-            nuovaInterazione = new();
-            // L'API porta il lead da "Nuovo" a "Contattato": ricarico entrambi.
-            await Esegui(async () =>
-            {
-                interazioni = await Api.InterazioniLead(id);
-                selezionato = (await Api.Lead()).FirstOrDefault(x => x.Id == id) ?? selezionato;
-            });
+            selezionato = null;
+            await Carica();
+            Conferma = $"Richiesta di {l.Nome} eliminata.";
         }
     }
 
     private async Task Converti()
     {
-        if (await Esegui(() => Api.ConvertiLead(selezionato!.Id, conversione), $"{conversione.Nome} {conversione.Cognome} aggiunto ai genitori."))
+        var nome = $"{conversione.Nome} {conversione.Cognome}";
+        if (await Esegui(() => Api.ConvertiLead(selezionato!.Id, conversione)))
         {
             selezionato = null;
             await Carica();
-            Conferma = $"{conversione.Nome} {conversione.Cognome} aggiunto ai genitori.";
+            Conferma = $"{nome} aggiunto ai genitori.";
         }
     }
 }

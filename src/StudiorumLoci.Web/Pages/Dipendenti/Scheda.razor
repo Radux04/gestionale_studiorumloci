@@ -23,8 +23,9 @@
             <button class="btn btn-outline-primary" @onclick="() => modulo = DipendenteInput.Da(dipendente)"><i class="bi bi-pencil"></i> Modifica</button>
             @if (dipendente.Attivo)
             {
-                <BottoneConferma Testo="Cessa rapporto" OnConferma="Cessa" />
+                <BottoneConferma Testo="Cessa rapporto" Classe="btn-outline-secondary" OnConferma="Cessa" />
             }
+            <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="Elimina" />
         </div>
     </div>
 
@@ -92,7 +93,10 @@
                                         <td>@t.Inizio.ToString("HH:mm") – @t.Fine.ToString("HH:mm")</td>
                                         <td class="text-end">@Testo.Ore(t.Ore)</td>
                                         <td>@t.Note</td>
-                                        <td class="text-end"><BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => EliminaTurno(t)" /></td>
+                                        <td class="text-end text-nowrap">
+                                            <button class="btn btn-sm btn-outline-primary" title="Modifica" @onclick="() => ApriTurno(t)"><i class="bi bi-pencil"></i></button>
+                                            <BottoneConferma Testo="Elimina" Icona="bi-trash" OnConferma="() => EliminaTurno(t)" />
+                                        </td>
                                     </tr>
                                 }
                                 @if (turni.Count == 0)
@@ -115,8 +119,33 @@
     }
 </Finestra>
 
+<Finestra Visibile="turnoInModifica is not null" Titolo="Modifica turno" OnChiudi="() => turnoInModifica = null">
+    @if (turnoInModifica is not null)
+    {
+        <Avvisi Errore="@Errore" />
+        <EditForm Model="turnoModulo" OnValidSubmit="SalvaTurno">
+            <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label">Inizio</label>
+                    <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="turnoModulo.Inizio" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label">Fine</label>
+                    <InputDate Type="InputDateType.DateTimeLocal" class="form-control" @bind-Value="turnoModulo.Fine" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Note</label>
+                <InputText class="form-control" @bind-Value="turnoModulo.Note" />
+            </div>
+            <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
+        </EditForm>
+    }
+</Finestra>
+
 @code {
     [Parameter] public int Id { get; set; }
+    [Inject] private NavigationManager Navigazione { get; set; } = null!;
 
     private DipendenteDto? dipendente;
     private DipendenteInput? modulo;
@@ -124,6 +153,8 @@
     private List<TurnoDto> turni = [];
     private CompensoDto? compenso;
     private TurnoInput nuovoTurno = new();
+    private TurnoDto? turnoInModifica;
+    private TurnoInput turnoModulo = new();
 
     private DateOnly FineMese => mese.AddMonths(1).AddDays(-1);
 
@@ -171,7 +202,28 @@
 
     private Task Cessa() => Esegui(async () =>
     {
-        await Api.DisattivaDipendente(Id);
+        await Api.CessaDipendente(Id);
         dipendente = await Api.Dipendente(Id);
     }, "Rapporto cessato.");
+
+    private async Task Elimina()
+    {
+        if (await Esegui(() => Api.EliminaDipendente(Id))) Navigazione.NavigateTo("dipendenti");
+    }
+
+    private void ApriTurno(TurnoDto t)
+    {
+        turnoInModifica = t;
+        turnoModulo = TurnoInput.Da(t);
+        Errore = null;
+    }
+
+    private async Task SalvaTurno()
+    {
+        if (await Esegui(() => Api.ModificaTurno(Id, turnoInModifica!.Id, turnoModulo)))
+        {
+            turnoInModifica = null;
+            await CaricaTurni();
+        }
+    }
 }

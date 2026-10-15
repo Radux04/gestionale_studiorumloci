@@ -51,13 +51,30 @@ public class StudentiController(AppDbContext db) : ControllerBase
     }
 
     /// <summary>Disattiva lo studente: lo storico (pagamenti, ecc.) resta consultabile.</summary>
-    [HttpDelete("{id:int}")]
+    [HttpPost("{id:int}/disattiva")]
     public async Task<IActionResult> Disattiva(int id)
     {
         var studente = await db.Studenti.FindAsync(id);
         if (studente is null) return NotFound();
 
         studente.Attivo = false;
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    /// <summary>Elimina definitivamente lo studente. Non consentito se ha pagamenti registrati.</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Elimina(int id)
+    {
+        var studente = await db.Studenti.FindAsync(id);
+        if (studente is null) return NotFound();
+
+        var pagamenti = await db.Pagamenti.CountAsync(p => p.StudenteId == id);
+        if (pagamenti > 0)
+            return Conflict($"{studente.Nome} {studente.Cognome} ha {pagamenti} pagamenti registrati: " +
+                "eliminali prima dalla pagina Pagamenti, oppure disattiva lo studente per conservarne lo storico.");
+
+        db.Studenti.Remove(studente);
         await db.SaveChangesAsync();
         return NoContent();
     }

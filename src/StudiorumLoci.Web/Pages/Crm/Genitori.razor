@@ -97,31 +97,10 @@
 <Finestra Visibile="storicoDi is not null" Titolo="@($"Storico contatti · {storicoDi?.NomeCompleto}")" Grande OnChiudi="() => storicoDi = null">
     @if (storicoDi is not null)
     {
-        <ul class="list-group mb-3">
-            @foreach (var i in interazioni)
-            {
-                <li class="list-group-item">
-                    <div class="small text-body-secondary">@Testo.DataOra(i.Data) · @Testo.Di(i.Tipo)</div>
-                    @i.Descrizione
-                </li>
-            }
-            @if (interazioni.Count == 0) { <li class="list-group-item text-body-secondary">Nessun contatto registrato.</li> }
-        </ul>
-        <EditForm Model="nuovaInterazione" OnValidSubmit="AggiungiInterazione" class="row g-2">
-            <DataAnnotationsValidator />
-            <div class="col-sm-3">
-                <InputSelect class="form-select" @bind-Value="nuovaInterazione.Tipo">
-                    @foreach (var t in Enum.GetValues<TipoInterazione>()) { <option value="@t">@Testo.Di(t)</option> }
-                </InputSelect>
-            </div>
-            <div class="col-sm-7">
-                <InputText class="form-control" placeholder="Es. colloquio con l'insegnante, sollecito retta" @bind-Value="nuovaInterazione.Descrizione" />
-                <ValidationMessage For="() => nuovaInterazione.Descrizione" />
-            </div>
-            <div class="col-sm-2 d-grid">
-                <button class="btn btn-outline-primary" disabled="@Caricamento">Aggiungi</button>
-            </div>
-        </EditForm>
+        <StoricoContatti Chiave="storicoDi.Id"
+                         Carica="() => Api.InterazioniGenitore(storicoDi.Id)"
+                         Aggiungi="i => Api.AggiungiInterazioneGenitore(storicoDi.Id, i)"
+                         Suggerimento="Es. colloquio con l'insegnante, sollecito retta" />
     }
 </Finestra>
 
@@ -134,8 +113,6 @@
     private int? idInModifica;
 
     private GenitoreDto? storicoDi;
-    private List<InterazioneDto> interazioni = [];
-    private InterazioneInput nuovaInterazione = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -173,23 +150,12 @@
 
     private async Task Elimina(GenitoreDto g)
     {
-        if (await Esegui(() => Api.EliminaGenitore(g.Id))) await Carica();
-    }
-
-    private async Task ApriStorico(GenitoreDto g)
-    {
-        storicoDi = g;
-        nuovaInterazione = new();
-        await Esegui(async () => interazioni = await Api.InterazioniGenitore(g.Id));
-    }
-
-    private async Task AggiungiInterazione()
-    {
-        var id = storicoDi!.Id;
-        if (await Esegui(() => Api.AggiungiInterazioneGenitore(id, nuovaInterazione)))
+        if (await Esegui(() => Api.EliminaGenitore(g.Id)))
         {
-            nuovaInterazione = new();
-            await Esegui(async () => interazioni = await Api.InterazioniGenitore(id));
+            await Carica();
+            Conferma = $"{g.NomeCompleto} eliminato (i figli restano in anagrafica).";
         }
     }
+
+    private void ApriStorico(GenitoreDto g) => storicoDi = g;
 }

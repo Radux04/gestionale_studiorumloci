@@ -21,7 +21,8 @@ public class ApiClient(HttpClient http)
         Get<List<StudenteDto>>($"api/crm/studenti?soloAttivi={soloAttivi}&cerca={Uri.EscapeDataString(cerca ?? "")}");
     public Task<StudenteDto> CreaStudente(StudenteInput s) => Send<StudenteDto>(HttpMethod.Post, "api/crm/studenti", s);
     public Task<StudenteDto> ModificaStudente(int id, StudenteInput s) => Send<StudenteDto>(HttpMethod.Put, $"api/crm/studenti/{id}", s);
-    public Task DisattivaStudente(int id) => Send(HttpMethod.Delete, $"api/crm/studenti/{id}");
+    public Task DisattivaStudente(int id) => Send(HttpMethod.Post, $"api/crm/studenti/{id}/disattiva");
+    public Task EliminaStudente(int id) => Send(HttpMethod.Delete, $"api/crm/studenti/{id}");
 
     // ---- CRM: genitori ----
     public Task<List<GenitoreDto>> Genitori(string? cerca = null) =>
@@ -36,6 +37,8 @@ public class ApiClient(HttpClient http)
     // ---- CRM: lead ----
     public Task<List<LeadDto>> Lead(StatoLead? stato = null) => Get<List<LeadDto>>($"api/crm/lead?stato={stato}");
     public Task<LeadDto> CreaLead(LeadInput l) => Send<LeadDto>(HttpMethod.Post, "api/crm/lead", l);
+    public Task<LeadDto> ModificaLead(int id, LeadInput l) => Send<LeadDto>(HttpMethod.Put, $"api/crm/lead/{id}", l);
+    public Task EliminaLead(int id) => Send(HttpMethod.Delete, $"api/crm/lead/{id}");
     public Task<LeadDto> CambiaStatoLead(int id, StatoLead stato) =>
         Send<LeadDto>(HttpMethod.Patch, $"api/crm/lead/{id}/stato", new CambiaStatoLeadInput(stato));
     public Task<GenitoreDto> ConvertiLead(int id, GenitoreInput g) => Send<GenitoreDto>(HttpMethod.Post, $"api/crm/lead/{id}/converti", g);
@@ -43,15 +46,23 @@ public class ApiClient(HttpClient http)
     public Task<InterazioneDto> AggiungiInterazioneLead(int id, InterazioneInput i) =>
         Send<InterazioneDto>(HttpMethod.Post, $"api/crm/lead/{id}/interazioni", i);
 
+    // ---- CRM: storico contatti ----
+    public Task<InterazioneDto> ModificaInterazione(int id, InterazioneInput i) =>
+        Send<InterazioneDto>(HttpMethod.Put, $"api/crm/interazioni/{id}", i);
+    public Task EliminaInterazione(int id) => Send(HttpMethod.Delete, $"api/crm/interazioni/{id}");
+
     // ---- Dipendenti ----
     public Task<List<DipendenteDto>> Dipendenti(RuoloDipendente? ruolo = null, bool soloAttivi = true) =>
         Get<List<DipendenteDto>>($"api/dipendenti?soloAttivi={soloAttivi}&ruolo={ruolo}");
     public Task<DipendenteDto> Dipendente(int id) => Get<DipendenteDto>($"api/dipendenti/{id}");
     public Task<DipendenteDto> CreaDipendente(DipendenteInput d) => Send<DipendenteDto>(HttpMethod.Post, "api/dipendenti", d);
     public Task<DipendenteDto> ModificaDipendente(int id, DipendenteInput d) => Send<DipendenteDto>(HttpMethod.Put, $"api/dipendenti/{id}", d);
-    public Task DisattivaDipendente(int id) => Send(HttpMethod.Delete, $"api/dipendenti/{id}");
+    public Task CessaDipendente(int id) => Send(HttpMethod.Post, $"api/dipendenti/{id}/cessa");
+    public Task EliminaDipendente(int id) => Send(HttpMethod.Delete, $"api/dipendenti/{id}");
     public Task<List<TurnoDto>> Turni(int id, DateOnly da, DateOnly a) => Get<List<TurnoDto>>($"api/dipendenti/{id}/turni?{Periodo(da, a)}");
     public Task<TurnoDto> AggiungiTurno(int id, TurnoInput t) => Send<TurnoDto>(HttpMethod.Post, $"api/dipendenti/{id}/turni", t);
+    public Task<TurnoDto> ModificaTurno(int id, int turnoId, TurnoInput t) =>
+        Send<TurnoDto>(HttpMethod.Put, $"api/dipendenti/{id}/turni/{turnoId}", t);
     public Task EliminaTurno(int id, int turnoId) => Send(HttpMethod.Delete, $"api/dipendenti/{id}/turni/{turnoId}");
     public Task<CompensoDto> Compenso(int id, DateOnly da, DateOnly a) => Get<CompensoDto>($"api/dipendenti/{id}/compenso?{Periodo(da, a)}");
 
@@ -62,6 +73,8 @@ public class ApiClient(HttpClient http)
     public Task<PagamentoDto> ModificaPagamento(int id, PagamentoInput p) => Send<PagamentoDto>(HttpMethod.Put, $"api/pagamenti/{id}", p);
     public Task<PagamentoDto> RegistraIncasso(int id, RegistraIncassoInput i) => Send<PagamentoDto>(HttpMethod.Post, $"api/pagamenti/{id}/incasso", i);
     public Task<PagamentoDto> AnnullaPagamento(int id) => Send<PagamentoDto>(HttpMethod.Post, $"api/pagamenti/{id}/annulla");
+    public Task<PagamentoDto> RipristinaPagamento(int id) => Send<PagamentoDto>(HttpMethod.Post, $"api/pagamenti/{id}/ripristina");
+    public Task EliminaPagamento(int id) => Send(HttpMethod.Delete, $"api/pagamenti/{id}");
     public Task<RiepilogoPagamentiDto> Riepilogo(int anno, int mese) => Get<RiepilogoPagamentiDto>($"api/pagamenti/riepilogo?anno={anno}&mese={mese}");
 
     // ---- Infrastruttura ----
@@ -106,13 +119,16 @@ public class ApiClient(HttpClient http)
         return response;
     }
 
-    /// <summary>Estrae un messaggio da ProblemDetails / ValidationProblemDetails o da una stringa JSON.</summary>
+    /// <summary>Estrae un messaggio da ProblemDetails / ValidationProblemDetails, da una stringa JSON o da testo semplice.</summary>
     private static async Task<string> LeggiErrore(HttpResponseMessage response)
     {
         var predefinito = $"Errore {(int)response.StatusCode} ({response.ReasonPhrase}).";
+        var contenuto = await response.Content.ReadAsStringAsync();
+        if (response.Content.Headers.ContentType?.MediaType == "text/plain")
+            return string.IsNullOrWhiteSpace(contenuto) ? predefinito : contenuto;
         try
         {
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            using var doc = JsonDocument.Parse(contenuto);
             var root = doc.RootElement;
             if (root.ValueKind == JsonValueKind.String) return root.GetString()!;
 

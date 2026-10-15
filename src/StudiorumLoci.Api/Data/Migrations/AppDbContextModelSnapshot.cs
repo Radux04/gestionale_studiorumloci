@@ -376,11 +376,13 @@ namespace StudiorumLoci.Api.Data.Migrations
                 {
                     b.HasOne("StudiorumLoci.Api.Domain.Crm.Genitore", "Genitore")
                         .WithMany("Interazioni")
-                        .HasForeignKey("GenitoreId");
+                        .HasForeignKey("GenitoreId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("StudiorumLoci.Api.Domain.Crm.Lead", "Lead")
                         .WithMany("Interazioni")
-                        .HasForeignKey("LeadId");
+                        .HasForeignKey("LeadId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Genitore");
 

@@ -42,6 +42,37 @@ public class LeadController(AppDbContext db) : ControllerBase
         return CreatedAtAction(nameof(Dettaglio), new { id = lead.Id }, lead.ToDto());
     }
 
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<LeadDto>> Modifica(int id, LeadInput input)
+    {
+        var lead = await db.Lead.FindAsync(id);
+        if (lead is null) return NotFound();
+
+        lead.Nome = input.Nome;
+        lead.Email = input.Email;
+        lead.Telefono = input.Telefono;
+        lead.Messaggio = input.Messaggio;
+        lead.Fonte = input.Fonte;
+        await db.SaveChangesAsync();
+        return lead.ToDto();
+    }
+
+    /// <summary>Elimina il lead e il suo storico contatti (il genitore eventualmente creato resta).</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Elimina(int id)
+    {
+        var lead = await db.Lead.FindAsync(id);
+        if (lead is null) return NotFound();
+
+        // Le interazioni già passate a un genitore restano a lui.
+        await db.Interazioni.Where(i => i.LeadId == id && i.GenitoreId != null)
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.LeadId, (int?)null));
+
+        db.Lead.Remove(lead);
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpPatch("{id:int}/stato")]
     public async Task<ActionResult<LeadDto>> CambiaStato(int id, CambiaStatoLeadInput input)
     {
