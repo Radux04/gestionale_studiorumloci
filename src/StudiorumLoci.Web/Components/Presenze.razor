@@ -1,0 +1,62 @@
+@* Presenze degli studenti di una lezione: ogni clic salva subito. *@
+@inject ApiClient Api
+
+@if (Lezione.Studenti.Length == 0)
+{
+    <div class="small text-body-secondary">Nessuno studente in questa lezione.</div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="small text-body-secondary">
+            @Lezione.Studenti.Count(s => s.Presente == true) presenti · @Lezione.Studenti.Count(s => s.Presente == false) assenti
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-success" disabled="@inCorso" @onclick="TuttiPresenti">Tutti presenti</button>
+    </div>
+    <ul class="list-group">
+        @foreach (var s in Lezione.Studenti)
+        {
+            <li class="list-group-item d-flex align-items-center justify-content-between py-1">
+                <span>@s.Nome</span>
+                <span class="btn-group btn-group-sm" role="group" aria-label="Presenza di @s.Nome">
+                    <button type="button" class="btn @(s.Presente == true ? "btn-success" : "btn-outline-success")" title="Presente"
+                            disabled="@inCorso" @onclick="() => Imposta(s, s.Presente == true ? null : true)"><i class="bi bi-check-lg"></i></button>
+                    <button type="button" class="btn @(s.Presente == false ? "btn-danger" : "btn-outline-danger")" title="Assente"
+                            disabled="@inCorso" @onclick="() => Imposta(s, s.Presente == false ? null : false)"><i class="bi bi-x-lg"></i></button>
+                </span>
+            </li>
+        }
+    </ul>
+}
+@if (errore is not null) { <div class="text-danger small mt-2">@errore</div> }
+
+@code {
+    [Parameter, EditorRequired] public LezioneDto Lezione { get; set; } = null!;
+    [Parameter] public EventCallback<LezioneDto> OnCambiata { get; set; }
+
+    private bool inCorso;
+    private string? errore;
+
+    /// <summary>Un secondo clic sullo stesso pulsante toglie la scelta (presenza non segnata).</summary>
+    private Task Imposta(PartecipanteDto s, bool? presente) => Salva([new PresenzaInput(s.StudenteId, presente)]);
+
+    private Task TuttiPresenti() => Salva(Lezione.Studenti.Select(s => new PresenzaInput(s.StudenteId, true)).ToList());
+
+    private async Task Salva(List<PresenzaInput> presenze)
+    {
+        inCorso = true;
+        errore = null;
+        try
+        {
+            await OnCambiata.InvokeAsync(await Api.SalvaPresenze(Lezione.Id, presenze));
+        }
+        catch (ApiException ex)
+        {
+            errore = ex.Message;
+        }
+        finally
+        {
+            inCorso = false;
+        }
+    }
+}

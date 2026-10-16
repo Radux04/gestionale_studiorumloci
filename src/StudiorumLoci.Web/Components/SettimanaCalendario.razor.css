@@ -1,0 +1,130 @@
+.cal-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+}
+
+.cal {
+    min-width: 760px;
+}
+
+.cal-intestazione {
+    display: grid;
+    grid-template-columns: 3.25rem repeat(7, 1fr);
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+}
+
+.cal-giorno-titolo {
+    padding: .4rem .5rem;
+    font-size: .85rem;
+    color: var(--bs-secondary-color);
+    display: flex;
+    gap: .35rem;
+    align-items: baseline;
+}
+
+.cal-numero {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+}
+
+.cal-giorno-titolo.oggi .cal-numero {
+    color: #fff;
+    background: var(--bs-primary);
+    border-radius: 999px;
+    padding: 0 .45rem;
+}
+
+.cal-corpo {
+    display: grid;
+    grid-template-columns: 3.25rem repeat(7, 1fr);
+    position: relative;
+}
+
+.cal-ore {
+    position: relative;
+}
+
+.cal-ora {
+    position: absolute;
+    right: .4rem;
+    transform: translateY(-.55rem);
+    font-size: .72rem;
+    color: var(--bs-secondary-color);
+}
+
+.cal-ora:first-child {
+    transform: none;
+}
+
+/* Righe orarie disegnate con uno sfondo ripetuto, una ogni ora. */
+.cal-colonna {
+    position: relative;
+    border-left: 1px solid var(--bs-border-color);
+    background-image: repeating-linear-gradient(to bottom,
+        var(--bs-border-color-translucent) 0, var(--bs-border-color-translucent) 1px,
+        transparent 1px, transparent var(--ora));
+}
+
+.cal-colonna.oggi {
+    background-color: rgba(var(--bs-primary-rgb), .04);
+}
+
+.cal-colonna.cliccabile {
+    cursor: copy;
+}
+
+.cal-lezione {
+    position: absolute;
+    overflow: hidden;
+    border-radius: .35rem;
+    border-left: 4px solid;
+    padding: .15rem .35rem;
+    font-size: .75rem;
+    line-height: 1.2;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08);
+}
+
+.cal-lezione:hover {
+    filter: brightness(.96);
+    z-index: 2;
+}
+
+.cal-orario {
+    font-weight: 600;
+    opacity: .8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cal-titolo {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cal-dettaglio span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cal-dettaglio {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .1rem .5rem;
+    opacity: .85;
+}
+
+/* Un colore per sede. */
+.c0 { background: #e7f0ff; border-color: #2f6fde; color: #133a7c; }
+.c1 { background: #e6f6ee; border-color: #1f9254; color: #0f4d2b; }
+.c2 { background: #fff3e0; border-color: #e07b00; color: #7a4300; }
+.c3 { background: #f3e8fd; border-color: #8a3fd1; color: #4a1d75; }
+.c4 { background: #fde8ec; border-color: #d63358; color: #761a30; }
+.c5 { background: #e3f6f7; border-color: #138a92; color: #0b4b50; }

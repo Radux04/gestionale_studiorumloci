@@ -1,0 +1,393 @@
+@page "/calendario"
+@inherits PaginaBase
+
+<PageTitle>Calendario · Studiorum Loci</PageTitle>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">@(gestione ? "Calendario" : "Le mie lezioni")</h1>
+    @if (gestione)
+    {
+        <button class="btn btn-primary" @onclick="() => ApriNuova(null)"><i class="bi bi-plus-lg"></i> Nuova lezione</button>
+    }
+</div>
+
+<Avvisi Errore="@(modulo is null && selezionata is null ? Errore : null)" Conferma="@Conferma" />
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="btn-group" role="group" aria-label="Settimana">
+        <button class="btn btn-outline-secondary" title="Settimana precedente" @onclick="() => Sposta(-7)"><i class="bi bi-chevron-left"></i></button>
+        <button class="btn btn-outline-secondary" @onclick="Oggi">Oggi</button>
+        <button class="btn btn-outline-secondary" title="Settimana successiva" @onclick="() => Sposta(7)"><i class="bi bi-chevron-right"></i></button>
+    </div>
+    <span class="fw-semibold fs-5 me-auto">@TitoloSettimana</span>
+    @if (gestione)
+    {
+        <div style="min-width: 13rem">
+            <SelezioneSede Sedi="sedi" Valore="filtroSede" ValoreChanged="CambiaSede" MostraSenzaSede="false" />
+        </div>
+        <div style="min-width: 13rem">
+            <select class="form-select" value="@(filtroDocente?.ToString() ?? "")" @onchange="CambiaDocente">
+                <option value="">Tutti i professori</option>
+                @foreach (var d in docenti) { <option value="@d.Id">@d.NomeCompleto</option> }
+            </select>
+        </div>
+    }
+</div>
+
+<SettimanaCalendario Lunedi="lunedi" Lezioni="lezioni"
+                     OnLezione="Apri" OnSlotLibero="@(gestione ? EventCallback.Factory.Create<DateTime>(this, d => ApriNuova(d)) : default)" />
+
+@if (gestione)
+{
+    <p class="small text-body-secondary mt-2"><i class="bi bi-info-circle"></i> Clicca su un orario libero per creare una lezione, su una lezione per aprirla. Ogni sede ha un colore.</p>
+}
+
+@* ---- Nuova / modifica lezione (gestione) ---- *@
+<Finestra Visibile="modulo is not null" Titolo="@(idInModifica is null ? "Nuova lezione" : "Lezione")" Grande OnChiudi="Chiudi">
+    @if (modulo is not null)
+    {
+        <Avvisi Errore="@Errore" />
+        <EditForm Model="modulo" OnValidSubmit="() => Salva(false)">
+            <DataAnnotationsValidator />
+            <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label">Materia / titolo</label>
+                    <InputText class="form-control" placeholder="es. Matematica, Compiti 2ª media" @bind-Value="modulo.Titolo" />
+                    <ValidationMessage For="() => modulo.Titolo" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="form-label">Sede</label>
+                    <select class="form-select" value="@modulo.SedeId" @onchange="CambiaSedeModulo">
+                        <option value="0">— seleziona la sede —</option>
+                        @foreach (var s in sedi.Where(s => s.Attiva || s.Id == modulo.SedeId)) { <option value="@s.Id">@s.Nome — @s.Localita</option> }
+                    </select>
+                    <ValidationMessage For="() => modulo.SedeId" />
+                </div>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-4">
+                    <label class="form-label">Giorno</label>
+                    <InputDate class="form-control" @bind-Value="giorno" />
+                </div>
+                <div class="col-6 col-sm-2">
+                    <label class="form-label">Dalle</label>
+                    <InputDate Type="InputDateType.Time" class="form-control" @bind-Value="oraInizio" @bind-Value:after="AdattaFine" />
+                </div>
+                <div class="col-6 col-sm-2">
+                    <label class="form-label">Alle</label>
+                    <InputDate Type="InputDateType.Time" class="form-control" @bind-Value="oraFine" />
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label">Professore</label>
+                    <InputSelect class="form-select" @bind-Value="modulo.DipendenteId">
+                        <option value="">— nessuno —</option>
+                        @foreach (var d in DocentiPerSede) { <option value="@d.Id">@d.NomeCompleto</option> }
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Studenti <span class="badge text-bg-secondary">@modulo.StudentiIds.Count</span></label>
+                @if (modulo.SedeId == 0)
+                {
+                    <div class="small text-body-secondary">Scegli prima la sede per vedere i suoi studenti.</div>
+                }
+                else
+                {
+                    <input class="form-control form-control-sm mb-2" type="search" placeholder="Cerca studente" @bind="cercaStudente" @bind:event="oninput" />
+                    <div class="border rounded p-2" style="max-height: 13rem; overflow-y: auto">
+                        @foreach (var s in StudentiSelezionabili)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="st@(s.Id)"
+                                       checked="@modulo.StudentiIds.Contains(s.Id)" @onchange="e => ImpostaStudente(s.Id, (bool)e.Value!)" />
+                                <label class="form-check-label" for="st@(s.Id)">@s.NomeCompleto <span class="small text-body-secondary">@s.Classe</span></label>
+                            </div>
+                        }
+                        @if (!StudentiSelezionabili.Any())
+                        {
+                            <div class="small text-body-secondary">Nessuno studente attivo in questa sede@(string.IsNullOrEmpty(cercaStudente) ? "" : " con questo nome").</div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (idInModifica is null)
+            {
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="ripeti" checked="@ripeti" @onchange="e => ImpostaRipeti((bool)e.Value!)" />
+                        <label class="form-check-label" for="ripeti">Ripeti ogni settimana</label>
+                    </div>
+                    @if (ripeti)
+                    {
+                        <div class="d-flex align-items-center gap-2 mt-1 ms-4">
+                            <span class="small">fino al</span>
+                            <InputDate class="form-control form-control-sm w-auto" @bind-Value="modulo.RipetiFinoAl" />
+                            <span class="small text-body-secondary">@NumeroRipetizioni lezioni</span>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label">Note</label>
+                <InputTextArea class="form-control" rows="2" @bind-Value="modulo.Note" />
+            </div>
+
+            @if (selezionata is not null)
+            {
+                <div class="mb-3">
+                    <label class="form-label">Presenze</label>
+                    <Presenze Lezione="selezionata" OnCambiata="PresenzeCambiate" />
+                </div>
+            }
+
+            <div class="d-flex flex-wrap gap-2">
+                @if (selezionata?.SerieId is not null)
+                {
+                    <button class="btn btn-primary" disabled="@Caricamento">Salva solo questa</button>
+                    <button type="button" class="btn btn-outline-primary" disabled="@Caricamento" @onclick="() => Salva(true)">Salva anche le successive</button>
+                }
+                else
+                {
+                    <button class="btn btn-primary" disabled="@Caricamento">Salva</button>
+                }
+                @if (selezionata is not null)
+                {
+                    <span class="ms-auto d-flex gap-2">
+                        @if (selezionata.SerieId is not null)
+                        {
+                            <BottoneConferma Testo="Elimina questa e le successive" OnConferma="() => Elimina(true)" />
+                        }
+                        <BottoneConferma Testo="Elimina" OnConferma="() => Elimina(false)" />
+                    </span>
+                }
+            </div>
+        </EditForm>
+    }
+</Finestra>
+
+@* ---- Dettaglio in sola lettura (professore) ---- *@
+<Finestra Visibile="selezionata is not null && modulo is null" Titolo="@(selezionata?.Titolo ?? "")" OnChiudi="Chiudi">
+    @if (selezionata is not null)
+    {
+        <dl class="row mb-3">
+            <dt class="col-4">Quando</dt>
+            <dd class="col-8">@Maiuscola(selezionata.Inizio.ToString("dddd d MMMM")) · @selezionata.Inizio.ToString("HH:mm")–@selezionata.Fine.ToString("HH:mm")</dd>
+            <dt class="col-4">Sede</dt><dd class="col-8">@selezionata.Sede</dd>
+            @if (selezionata.Note is not null) { <dt class="col-4">Note</dt><dd class="col-8" style="white-space: pre-line">@selezionata.Note</dd> }
+        </dl>
+        <h6>Presenze</h6>
+        <Presenze Lezione="selezionata" OnCambiata="PresenzeCambiate" />
+    }
+</Finestra>
+
+@code {
+    [Inject] private Sessione Sessione { get; set; } = null!;
+    [SupplyParameterFromQuery] public int? SedeId { get; set; }
+
+    private bool gestione => Sessione.PuoGestire;
+
+    private DateOnly lunedi = LunediDi(DateOnly.FromDateTime(DateTime.Today));
+    private List<LezioneDto> lezioni = [];
+    private List<SedeDto> sedi = [];
+
+    private List<DipendenteDto> docenti = [];
+    private List<StudenteDto> studenti = [];
+    private int? filtroSede;
+    private int? filtroDocente;
+
+    private LezioneInput? modulo;
+    private int? idInModifica;
+    private LezioneDto? selezionata;
+    private DateOnly giorno;
+    private TimeOnly oraInizio;
+    private TimeOnly oraFine;
+    private bool ripeti;
+    private string? cercaStudente;
+
+    private static DateOnly LunediDi(DateOnly d) => d.AddDays(-(((int)d.DayOfWeek + 6) % 7));
+
+    /// <summary>"mercoledì 14 ottobre" → "Mercoledì 14 ottobre" (solo la prima lettera, il mese resta minuscolo).</summary>
+    private static string Maiuscola(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
+
+    private string TitoloSettimana
+    {
+        get
+        {
+            var domenica = lunedi.AddDays(6);
+            return lunedi.Month == domenica.Month
+                ? $"{lunedi.Day} – {domenica:d MMMM yyyy}"
+                : $"{lunedi:d MMM} – {domenica:d MMM yyyy}";
+        }
+    }
+
+    private IEnumerable<DipendenteDto> DocentiPerSede => modulo is null || modulo.SedeId == 0
+        ? docenti
+        : docenti.Where(d => d.SediIds.Length == 0 || d.SediIds.Contains(modulo.SedeId) || d.Id == modulo.DipendenteId);
+
+    /// <summary>Studenti attivi della sede scelta (più quelli già nella lezione), filtrati per nome.</summary>
+    private IEnumerable<StudenteDto> StudentiSelezionabili => studenti
+        .Where(s => (s.Attivo && s.SedeId == modulo!.SedeId) || modulo!.StudentiIds.Contains(s.Id))
+        .Where(s => string.IsNullOrWhiteSpace(cercaStudente) || s.NomeCompleto.Contains(cercaStudente, StringComparison.OrdinalIgnoreCase));
+
+    private int NumeroRipetizioni => modulo?.RipetiFinoAl is { } fino && fino >= giorno ? (fino.DayNumber - giorno.DayNumber) / 7 + 1 : 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        filtroSede = SedeId;
+        if (gestione)
+        {
+            await Esegui(async () =>
+            {
+                sedi = await Api.Sedi();
+                docenti = await Api.Dipendenti();
+                studenti = await Api.Studenti(soloAttivi: false);
+            });
+
+        }
+        await Carica();
+    }
+
+    private Task Carica() => Esegui(async () => lezioni = await Api.Lezioni(lunedi, lunedi.AddDays(6), filtroSede, filtroDocente));
+
+    private Task Sposta(int giorni)
+    {
+        lunedi = lunedi.AddDays(giorni);
+        return Carica();
+    }
+
+    private Task Oggi()
+    {
+        lunedi = LunediDi(DateOnly.FromDateTime(DateTime.Today));
+        return Carica();
+    }
+
+    private Task CambiaSede(int? sedeId)
+    {
+        filtroSede = sedeId;
+        return Carica();
+    }
+
+    private Task CambiaDocente(ChangeEventArgs e)
+    {
+        filtroDocente = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        return Carica();
+    }
+
+    // ---- Modulo ----
+
+    private void ApriNuova(DateTime? quando)
+    {
+        var inizio = quando ?? DateTime.Today.AddHours(15);
+        idInModifica = null;
+        selezionata = null;
+        Errore = null;
+        ripeti = false;
+        cercaStudente = null;
+        modulo = new LezioneInput
+        {
+            SedeId = filtroSede ?? (sedi.Count(s => s.Attiva) == 1 ? sedi.First(s => s.Attiva).Id : 0),
+            DipendenteId = filtroDocente,
+        };
+        giorno = DateOnly.FromDateTime(inizio);
+        oraInizio = TimeOnly.FromDateTime(inizio);
+        oraFine = oraInizio.AddHours(1);
+    }
+
+    private void Apri(LezioneDto l)
+    {
+        selezionata = l;
+        Errore = null;
+        if (!gestione) return; // il professore vede solo il dettaglio con le presenze
+
+        idInModifica = l.Id;
+        cercaStudente = null;
+        modulo = LezioneInput.Da(l);
+        giorno = DateOnly.FromDateTime(l.Inizio);
+        oraInizio = TimeOnly.FromDateTime(l.Inizio);
+        oraFine = TimeOnly.FromDateTime(l.Fine);
+    }
+
+    private async Task Chiudi()
+    {
+        var presenzeCambiate = selezionata is not null;
+        modulo = null;
+        selezionata = null;
+        if (presenzeCambiate) await Carica();
+    }
+
+    /// <summary>Spostando l'inizio, la fine si sposta di conseguenza (stessa durata).</summary>
+    private void AdattaFine()
+    {
+        if (oraFine <= oraInizio) oraFine = oraInizio.AddHours(1);
+    }
+
+    private void CambiaSedeModulo(ChangeEventArgs e)
+    {
+        modulo!.SedeId = int.TryParse(e.Value?.ToString(), out var id) ? id : 0;
+        // Gli studenti di altre sedi non sono più selezionabili: li tolgo.
+        modulo.StudentiIds.RemoveAll(sid => studenti.FirstOrDefault(s => s.Id == sid)?.SedeId != modulo.SedeId);
+    }
+
+    private void ImpostaStudente(int id, bool selezionato)
+    {
+        modulo!.StudentiIds.Remove(id);
+        if (selezionato) modulo.StudentiIds.Add(id);
+    }
+
+    private void ImpostaRipeti(bool valore)
+    {
+        ripeti = valore;
+        // Proposta: fino alla fine dell'anno scolastico (giugno).
+        var fineAnno = new DateOnly(giorno.Month >= 7 ? giorno.Year + 1 : giorno.Year, 6, 10);
+        modulo!.RipetiFinoAl = valore ? fineAnno : null;
+    }
+
+    private async Task Salva(bool successive)
+    {
+        modulo!.Inizio = giorno.ToDateTime(oraInizio);
+        modulo.Fine = giorno.ToDateTime(oraFine);
+        if (!ripeti) modulo.RipetiFinoAl = null;
+
+        var messaggio = "";
+        var ok = await Esegui(async () =>
+        {
+            if (idInModifica is { } id)
+            {
+                await Api.ModificaLezione(id, modulo, successive);
+                messaggio = successive ? "Lezione e successive della serie aggiornate." : "Lezione aggiornata.";
+            }
+            else
+            {
+                var create = await Api.CreaLezione(modulo);
+                messaggio = create.Count == 1 ? "Lezione creata." : $"Create {create.Count} lezioni (una a settimana).";
+                // Porto il calendario sulla settimana della lezione appena creata.
+                lunedi = LunediDi(giorno);
+            }
+        });
+        if (!ok) return;
+
+        modulo = null;
+        selezionata = null;
+        await Carica();
+        Conferma = messaggio;
+    }
+
+    private async Task Elimina(bool successive)
+    {
+        if (!await Esegui(() => Api.EliminaLezione(selezionata!.Id, successive))) return;
+        modulo = null;
+        selezionata = null;
+        await Carica();
+        Conferma = successive ? "Lezione e successive della serie eliminate." : "Lezione eliminata.";
+    }
+
+    private void PresenzeCambiate(LezioneDto aggiornata)
+    {
+        selezionata = aggiornata;
+        var i = lezioni.FindIndex(l => l.Id == aggiornata.Id);
+        if (i >= 0) lezioni[i] = aggiornata;
+    }
+}

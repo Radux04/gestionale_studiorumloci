@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StudiorumLoci.Api.Domain.Accessi;
+using StudiorumLoci.Api.Domain.Calendario;
 using StudiorumLoci.Api.Domain.Common;
 using StudiorumLoci.Api.Domain.Crm;
 using StudiorumLoci.Api.Domain.Dipendenti;
@@ -30,11 +31,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Pagamento> Pagamenti => Set<Pagamento>();
     public DbSet<RicevutaFile> RicevuteFile => Set<RicevutaFile>();
 
+    // Calendario
+    public DbSet<Lezione> Lezioni => Set<Lezione>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         // Schema dedicato: Supabase espone via Data API solo "public", così i dati
         // del gestionale restano raggiungibili esclusivamente tramite questa API.
         b.HasDefaultSchema("gestionale");
+
+        b.Entity<Lezione>(e =>
+        {
+            e.Property(x => x.Titolo).HasMaxLength(150);
+            e.Property(x => x.Inizio).HasColumnType("timestamp without time zone");
+            e.Property(x => x.Fine).HasColumnType("timestamp without time zone");
+            e.HasIndex(x => x.Inizio);
+            // Una sede con lezioni in calendario non si elimina (va disattivata).
+            e.HasOne(x => x.Sede).WithMany().OnDelete(DeleteBehavior.Restrict);
+            // Eliminando il professore le lezioni restano, senza docente.
+            e.HasOne(x => x.Dipendente).WithMany().OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<LezioneStudente>(e =>
+        {
+            e.ToTable("LezioniStudenti");
+            e.HasKey(x => new { x.LezioneId, x.StudenteId });
+            e.HasOne(x => x.Lezione).WithMany(x => x.Studenti).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Studente).WithMany().OnDelete(DeleteBehavior.Cascade);
+        });
 
         b.Entity<Utente>(e =>
         {

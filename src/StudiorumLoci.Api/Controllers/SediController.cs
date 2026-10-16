@@ -76,6 +76,9 @@ public class SediController(AppDbContext db) : ControllerBase
         if (studenti > 0)
             return Conflict($"La sede {sede.Nome} ha {studenti} studenti assegnati: spostali in un'altra sede " +
                 "oppure disattiva la sede.");
+        var lezioni = await db.Lezioni.CountAsync(l => l.SedeId == id);
+        if (lezioni > 0)
+            return Conflict($"La sede {sede.Nome} ha {lezioni} lezioni in calendario: eliminale oppure disattiva la sede.");
 
         db.Sedi.Remove(sede);
         await db.SaveChangesAsync();

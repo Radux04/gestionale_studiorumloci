@@ -111,6 +111,72 @@ namespace StudiorumLoci.Api.Data.Migrations
                     b.ToTable("Utenti", "gestionale");
                 });
 
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Calendario.Lezione", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatoIl")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DipendenteId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Fine")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("Inizio")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("ModificatoIl")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<int>("SedeId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("SerieId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Titolo")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DipendenteId");
+
+                    b.HasIndex("Inizio");
+
+                    b.HasIndex("SedeId");
+
+                    b.ToTable("Lezioni", "gestionale");
+                });
+
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Calendario.LezioneStudente", b =>
+                {
+                    b.Property<int>("LezioneId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StudenteId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool?>("Presente")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("LezioneId", "StudenteId");
+
+                    b.HasIndex("StudenteId");
+
+                    b.ToTable("LezioniStudenti", "gestionale");
+                });
+
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Crm.Genitore", b =>
                 {
                     b.Property<int>("Id")
@@ -558,6 +624,43 @@ namespace StudiorumLoci.Api.Data.Migrations
                     b.Navigation("Dipendente");
                 });
 
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Calendario.Lezione", b =>
+                {
+                    b.HasOne("StudiorumLoci.Api.Domain.Dipendenti.Dipendente", "Dipendente")
+                        .WithMany()
+                        .HasForeignKey("DipendenteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudiorumLoci.Api.Domain.Sedi.Sede", "Sede")
+                        .WithMany()
+                        .HasForeignKey("SedeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Dipendente");
+
+                    b.Navigation("Sede");
+                });
+
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Calendario.LezioneStudente", b =>
+                {
+                    b.HasOne("StudiorumLoci.Api.Domain.Calendario.Lezione", "Lezione")
+                        .WithMany("Studenti")
+                        .HasForeignKey("LezioneId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudiorumLoci.Api.Domain.Crm.Studente", "Studente")
+                        .WithMany()
+                        .HasForeignKey("StudenteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lezione");
+
+                    b.Navigation("Studente");
+                });
+
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Crm.Interazione", b =>
                 {
                     b.HasOne("StudiorumLoci.Api.Domain.Crm.Genitore", "Genitore")
@@ -624,6 +727,11 @@ namespace StudiorumLoci.Api.Data.Migrations
                         .HasForeignKey("StudiorumLoci.Api.Domain.Pagamenti.RicevutaFile", "PagamentoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("StudiorumLoci.Api.Domain.Calendario.Lezione", b =>
+                {
+                    b.Navigation("Studenti");
                 });
 
             modelBuilder.Entity("StudiorumLoci.Api.Domain.Crm.Genitore", b =>

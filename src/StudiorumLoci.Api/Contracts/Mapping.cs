@@ -1,4 +1,5 @@
 using StudiorumLoci.Api.Domain.Accessi;
+using StudiorumLoci.Api.Domain.Calendario;
 using StudiorumLoci.Api.Domain.Crm;
 using StudiorumLoci.Api.Domain.Dipendenti;
 using StudiorumLoci.Api.Domain.Pagamenti;
@@ -37,6 +38,15 @@ public static class Mapping
     /// <remarks>Per il nome richiede che <see cref="Utente.Dipendente"/> sia caricato.</remarks>
     public static UtenteDto ToDto(this Utente u) => new(
         u.Id, u.Email, u.NomeVisualizzato, u.Ruolo, u.Attivo, u.DeveCambiarePassword, u.UltimoAccesso, u.DipendenteId);
+
+    /// <remarks>Richiede Sede, Dipendente e Studenti.Studente caricati.</remarks>
+    public static LezioneDto ToDto(this Lezione l) => new(
+        l.Id, l.Titolo, l.Inizio, l.Fine, l.SedeId, l.Sede.Nome,
+        l.DipendenteId, l.Dipendente is { } d ? $"{d.Nome} {d.Cognome}" : null, l.Note, l.SerieId,
+        l.Studenti
+            .OrderBy(s => s.Studente.Cognome).ThenBy(s => s.Studente.Nome)
+            .Select(s => new PartecipanteDto(s.StudenteId, $"{s.Studente.Cognome} {s.Studente.Nome}", s.Presente))
+            .ToArray());
 
     public static UtenteCorrenteDto ToCorrenteDto(this Utente u) => new(
         u.Id, u.Email, u.NomeVisualizzato, u.Ruolo, u.DipendenteId, u.DeveCambiarePassword);

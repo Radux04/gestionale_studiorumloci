@@ -1,0 +1,115 @@
+@* Vista settimanale (lunedì–domenica) con le lezioni posizionate per orario; le sovrapposte vanno affiancate. *@
+
+<div class="cal-scroll">
+    <div class="cal" style="--ora: @(AltezzaOra)px">
+        <div class="cal-intestazione">
+            <div></div>
+            @foreach (var giorno in Giorni)
+            {
+                <div class="cal-giorno-titolo @(giorno == oggi ? "oggi" : "")">
+                    <span class="text-capitalize">@giorno.ToString("ddd")</span>
+                    <span class="cal-numero">@giorno.Day</span>
+                </div>
+            }
+        </div>
+        <div class="cal-corpo" style="height: @((OraFine - OraInizio) * AltezzaOra)px">
+            <div class="cal-ore">
+                @for (var h = OraInizio; h < OraFine; h++)
+                {
+                    <div class="cal-ora" style="top: @((h - OraInizio) * AltezzaOra)px">@h.ToString("00"):00</div>
+                }
+            </div>
+            @foreach (var giorno in Giorni)
+            {
+                var delGiorno = Lezioni.Where(l => DateOnly.FromDateTime(l.Inizio) == giorno).ToList();
+                var corsie = Corsie(delGiorno);
+                <div class="cal-colonna @(giorno == oggi ? "oggi" : "") @(OnSlotLibero.HasDelegate ? "cliccabile" : "")"
+                     @onclick="e => ClicColonna(giorno, e)">
+                    @foreach (var l in delGiorno)
+                    {
+                        var (corsia, totale) = corsie[l.Id];
+                        <div class="cal-lezione @Colore(l.SedeId)"
+                             style="top: @Px(Minuti(l.Inizio))px; height: @Px(Math.Max(24, l.Durata.TotalMinutes * AltezzaOra / 60))px; left: calc(@(Perc(corsia, totale))% + 2px); width: calc(@(Perc(1, totale))% - 4px)"
+                             title="@l.Titolo · @l.Inizio.ToString("HH:mm")–@l.Fine.ToString("HH:mm") · @l.Sede"
+                             @onclick="() => OnLezione.InvokeAsync(l)" @onclick:stopPropagation="true">
+                            <div class="cal-orario">@l.Inizio.ToString("HH:mm")–@l.Fine.ToString("HH:mm")</div>
+                            <div class="cal-titolo">@l.Titolo</div>
+                            @if (l.Durata.TotalMinutes >= 45)
+                            {
+                                <div class="cal-dettaglio">
+                                    @if (l.Docente is not null) { <span><i class="bi bi-person"></i> @l.Docente</span> }
+                                    <span><i class="bi bi-people"></i> @l.Studenti.Length</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>Lunedì della settimana mostrata.</summary>
+    [Parameter, EditorRequired] public DateOnly Lunedi { get; set; }
+    [Parameter, EditorRequired] public List<LezioneDto> Lezioni { get; set; } = [];
+    [Parameter] public EventCallback<LezioneDto> OnLezione { get; set; }
+    /// <summary>Clic su uno spazio libero: giorno e ora (arrotondata alla mezz'ora).</summary>
+    [Parameter] public EventCallback<DateTime> OnSlotLibero { get; set; }
+
+    private const int AltezzaOra = 64;
+    private readonly DateOnly oggi = DateOnly.FromDateTime(DateTime.Today);
+    private static readonly string[] Colori = ["c0", "c1", "c2", "c3", "c4", "c5"];
+
+    private IEnumerable<DateOnly> Giorni => Enumerable.Range(0, 7).Select(Lunedi.AddDays);
+
+    // Fascia oraria del doposcuola: 9–20, allargata se ci sono lezioni prima o dopo.
+    private int OraInizio => Math.Min(9, Lezioni.Count == 0 ? 9 : Lezioni.Min(l => l.Inizio.Hour));
+    private int OraFine => Math.Max(20, Lezioni.Count == 0 ? 20 : Lezioni.Max(l => l.Fine.Minute > 0 ? l.Fine.Hour + 1 : l.Fine.Hour));
+
+    private double Minuti(DateTime t) => ((t.Hour - OraInizio) * 60 + t.Minute) * AltezzaOra / 60.0;
+    private static string Px(double v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Perc(int parte, int totale) => (100.0 * parte / totale).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>Colore stabile per sede, uguale per tutti gli utenti.</summary>
+    private static string Colore(int sedeId) => Colori[sedeId % Colori.Length];
+
+    private Task ClicColonna(DateOnly giorno, MouseEventArgs e)
+    {
+        if (!OnSlotLibero.HasDelegate) return Task.CompletedTask;
+        var minuti = (int)(e.OffsetY / AltezzaOra * 60);
+        minuti = Math.Clamp(minuti / 30 * 30, 0, (OraFine - OraInizio) * 60 - 60);
+        return OnSlotLibero.InvokeAsync(giorno.ToDateTime(new TimeOnly(OraInizio, 0)).AddMinutes(minuti));
+    }
+
+    /// <summary>
+    /// Per ogni lezione: corsia in cui disegnarla e numero di corsie del suo gruppo di
+    /// lezioni sovrapposte, così due lezioni contemporanee stanno affiancate.
+    /// </summary>
+    private static Dictionary<int, (int Corsia, int Totale)> Corsie(List<LezioneDto> lezioni)
+    {
+        var esito = new Dictionary<int, (int, int)>();
+        var gruppo = new List<(LezioneDto L, int Corsia)>();
+        var fineGruppo = DateTime.MinValue;
+        var fineCorsie = new List<DateTime>();
+
+        void ChiudiGruppo()
+        {
+            foreach (var (l, c) in gruppo) esito[l.Id] = (c, fineCorsie.Count);
+            gruppo.Clear();
+            fineCorsie.Clear();
+        }
+
+        foreach (var l in lezioni.OrderBy(l => l.Inizio).ThenBy(l => l.Fine))
+        {
+            if (gruppo.Count > 0 && l.Inizio >= fineGruppo) ChiudiGruppo();
+            var corsia = fineCorsie.FindIndex(f => f <= l.Inizio);
+            if (corsia < 0) { corsia = fineCorsie.Count; fineCorsie.Add(l.Fine); }
+            else fineCorsie[corsia] = l.Fine;
+            gruppo.Add((l, corsia));
+            fineGruppo = gruppo.Count == 1 ? l.Fine : (l.Fine > fineGruppo ? l.Fine : fineGruppo);
+        }
+        ChiudiGruppo();
+        return esito;
+    }
+}

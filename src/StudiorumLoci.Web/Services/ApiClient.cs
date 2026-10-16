@@ -28,6 +28,16 @@ public class ApiClient(HttpClient http)
     public Task<PasswordTemporaneaDto> ReimpostaPassword(int id) => Send<PasswordTemporaneaDto>(HttpMethod.Post, $"api/utenti/{id}/reimposta-password");
     public Task EliminaUtente(int id) => Send(HttpMethod.Delete, $"api/utenti/{id}");
 
+    // ---- Calendario ----
+    public Task<List<LezioneDto>> Lezioni(DateOnly da, DateOnly a, int? sedeId = null, int? dipendenteId = null) =>
+        Get<List<LezioneDto>>($"api/lezioni?{Periodo(da, a)}&sedeId={sedeId}&dipendenteId={dipendenteId}");
+    public Task<List<LezioneDto>> CreaLezione(LezioneInput l) => Send<List<LezioneDto>>(HttpMethod.Post, "api/lezioni", l);
+    public Task<LezioneDto> ModificaLezione(int id, LezioneInput l, bool successive) =>
+        Send<LezioneDto>(HttpMethod.Put, $"api/lezioni/{id}?successive={successive}", l);
+    public Task EliminaLezione(int id, bool successive) => Send(HttpMethod.Delete, $"api/lezioni/{id}?successive={successive}");
+    public Task<LezioneDto> SalvaPresenze(int id, List<PresenzaInput> presenze) =>
+        Send<LezioneDto>(HttpMethod.Put, $"api/lezioni/{id}/presenze", presenze);
+
     // ---- Sedi ----
     public Task<List<SedeDto>> Sedi(string? regione = null, bool soloAttive = false) =>
         Get<List<SedeDto>>($"api/sedi?soloAttive={soloAttive}&regione={Uri.EscapeDataString(regione ?? "")}");
