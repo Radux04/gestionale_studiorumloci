@@ -34,6 +34,24 @@ public class LezioniController(AppDbContext db) : ControllerBase
         return Ok((await query.OrderBy(l => l.Inizio).ToListAsync()).Select(l => l.ToDto()));
     }
 
+    /// <summary>Numero di lezioni per giorno (per la vista annuale: niente dettagli, solo i conteggi).</summary>
+    [HttpGet("conteggi")]
+    public async Task<ActionResult<IEnumerable<ConteggioGiornoDto>>> Conteggi(DateOnly da, DateOnly a, int? sedeId, int? dipendenteId)
+    {
+        if (a < da || a.DayNumber - da.DayNumber > 400) return ValidationProblem("Intervallo di date non valido (massimo un anno).");
+
+        var query = Visibili(db.Lezioni.AsNoTracking())
+            .Where(l => l.Inizio >= da.ToDateTime(TimeOnly.MinValue) && l.Inizio < a.AddDays(1).ToDateTime(TimeOnly.MinValue));
+        if (sedeId is not null) query = query.Where(l => l.SedeId == sedeId);
+        if (dipendenteId is not null) query = query.Where(l => l.DipendenteId == dipendenteId);
+
+        var giorni = await query
+            .GroupBy(l => l.Inizio.Date)
+            .Select(g => new { Giorno = g.Key, Numero = g.Count() })
+            .ToListAsync();
+        return Ok(giorni.OrderBy(g => g.Giorno).Select(g => new ConteggioGiornoDto(DateOnly.FromDateTime(g.Giorno), g.Numero)));
+    }
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<LezioneDto>> Dettaglio(int id)
     {

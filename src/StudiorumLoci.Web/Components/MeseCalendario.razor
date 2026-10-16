@@ -1,0 +1,67 @@
+@* Vista mensile: settimane da lunedì a domenica, con le lezioni di ogni giorno (le prime 3 + "altre"). *@
+
+<div class="mese">
+    <div class="mese-intestazione">
+        @foreach (var nome in NomiGiorni) { <div>@nome</div> }
+    </div>
+    <div class="mese-griglia">
+        @foreach (var giorno in Giorni)
+        {
+            var delGiorno = Lezioni.Where(l => DateOnly.FromDateTime(l.Inizio) == giorno).OrderBy(l => l.Inizio).ToList();
+            <div class="mese-giorno @(giorno.Month != Mese.Month ? "fuori" : "") @(giorno == oggi ? "oggi" : "") @(OnGiornoLibero.HasDelegate ? "cliccabile" : "")"
+                 @onclick="() => OnGiornoLibero.InvokeAsync(giorno)">
+                <button type="button" class="mese-numero" title="Apri la settimana" @onclick="() => OnApriGiorno.InvokeAsync(giorno)" @onclick:stopPropagation="true">
+                    @giorno.Day
+                </button>
+                @foreach (var l in delGiorno.Take(MassimoVisibili))
+                {
+                    <div class="mese-lezione @Testo.ColoreSede(l.SedeId)" title="@Descrizione(l)"
+                         @onclick="() => OnLezione.InvokeAsync(l)" @onclick:stopPropagation="true">
+                        <span class="mese-ora">@l.Inizio.ToString("HH:mm")</span> @l.Titolo
+                    </div>
+                }
+                @if (delGiorno.Count > MassimoVisibili)
+                {
+                    <button type="button" class="mese-altre" @onclick="() => OnApriGiorno.InvokeAsync(giorno)" @onclick:stopPropagation="true">
+                        +@(delGiorno.Count - MassimoVisibili) altre
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Primo giorno del mese mostrato.</summary>
+    [Parameter, EditorRequired] public DateOnly Mese { get; set; }
+    [Parameter, EditorRequired] public List<LezioneDto> Lezioni { get; set; } = [];
+    [Parameter] public EventCallback<LezioneDto> OnLezione { get; set; }
+    /// <summary>Clic sul numero del giorno o su "altre": di solito apre la settimana.</summary>
+    [Parameter] public EventCallback<DateOnly> OnApriGiorno { get; set; }
+    /// <summary>Clic su uno spazio vuoto del giorno: di solito crea una lezione.</summary>
+    [Parameter] public EventCallback<DateOnly> OnGiornoLibero { get; set; }
+
+    private static string Descrizione(LezioneDto l) =>
+        $"{l.Titolo} · {l.Inizio:HH:mm}–{l.Fine:HH:mm} · {l.Sede}" + (l.Docente is null ? "" : $" · {l.Docente}");
+
+    private const int MassimoVisibili = 3;
+    private static readonly string[] NomiGiorni = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+    private readonly DateOnly oggi = DateOnly.FromDateTime(DateTime.Today);
+
+    /// <summary>Primo lunedì e ultima domenica che contengono il mese.</summary>
+    public static (DateOnly Da, DateOnly A) Intervallo(DateOnly mese)
+    {
+        var primo = new DateOnly(mese.Year, mese.Month, 1);
+        var ultimo = primo.AddMonths(1).AddDays(-1);
+        return (primo.AddDays(-(((int)primo.DayOfWeek + 6) % 7)), ultimo.AddDays((7 - (int)ultimo.DayOfWeek) % 7));
+    }
+
+    private IEnumerable<DateOnly> Giorni
+    {
+        get
+        {
+            var (da, a) = Intervallo(Mese);
+            for (var d = da; d <= a; d = d.AddDays(1)) yield return d;
+        }
+    }
+}

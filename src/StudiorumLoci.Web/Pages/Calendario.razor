@@ -14,12 +14,19 @@
 <Avvisi Errore="@(modulo is null && selezionata is null ? Errore : null)" Conferma="@Conferma" />
 
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-    <div class="btn-group" role="group" aria-label="Settimana">
-        <button class="btn btn-outline-secondary" title="Settimana precedente" @onclick="() => Sposta(-7)"><i class="bi bi-chevron-left"></i></button>
+    <div class="btn-group" role="group" aria-label="Periodo">
+        <button class="btn btn-outline-secondary" title="Periodo precedente" @onclick="() => Sposta(-1)"><i class="bi bi-chevron-left"></i></button>
         <button class="btn btn-outline-secondary" @onclick="Oggi">Oggi</button>
-        <button class="btn btn-outline-secondary" title="Settimana successiva" @onclick="() => Sposta(7)"><i class="bi bi-chevron-right"></i></button>
+        <button class="btn btn-outline-secondary" title="Periodo successivo" @onclick="() => Sposta(1)"><i class="bi bi-chevron-right"></i></button>
     </div>
-    <span class="fw-semibold fs-5 me-auto">@TitoloSettimana</span>
+    <span class="fw-semibold fs-5 me-auto">@TitoloPeriodo</span>
+    <div class="btn-group" role="group" aria-label="Vista">
+        @foreach (var v in Enum.GetValues<Vista>())
+        {
+            <input type="radio" class="btn-check" name="vista" id="vista@(v)" checked="@(vista == v)" @onchange="() => CambiaVista(v, riferimento)" />
+            <label class="btn btn-outline-primary" for="vista@(v)">@v</label>
+        }
+    </div>
     @if (gestione)
     {
         <div style="min-width: 13rem">
@@ -34,12 +41,30 @@
     }
 </div>
 
-<SettimanaCalendario Lunedi="lunedi" Lezioni="lezioni"
-                     OnLezione="Apri" OnSlotLibero="@(gestione ? EventCallback.Factory.Create<DateTime>(this, d => ApriNuova(d)) : default)" />
-
-@if (gestione)
+@switch (vista)
 {
-    <p class="small text-body-secondary mt-2"><i class="bi bi-info-circle"></i> Clicca su un orario libero per creare una lezione, su una lezione per aprirla. Ogni sede ha un colore.</p>
+    case Vista.Settimana:
+        <SettimanaCalendario Lunedi="Lunedi" Lezioni="lezioni"
+                             OnLezione="Apri" OnSlotLibero="@(gestione ? EventCallback.Factory.Create<DateTime>(this, d => ApriNuova(d)) : default)" />
+        @if (gestione)
+        {
+            <p class="small text-body-secondary mt-2"><i class="bi bi-info-circle"></i> Clicca su un orario libero per creare una lezione, su una lezione per aprirla. Ogni sede ha un colore.</p>
+        }
+        break;
+
+    case Vista.Mese:
+        <MeseCalendario Mese="PrimoDelMese" Lezioni="lezioni" OnLezione="Apri"
+                        OnApriGiorno="g => CambiaVista(Vista.Settimana, g)"
+                        OnGiornoLibero="@(gestione ? EventCallback.Factory.Create<DateOnly>(this, g => ApriNuova(g.ToDateTime(new TimeOnly(15, 0)))) : default)" />
+        <p class="small text-body-secondary mt-2">
+            <i class="bi bi-info-circle"></i> Clicca sul numero di un giorno per vederne la settimana@(gestione ? ", su uno spazio vuoto per creare una lezione" : "").
+        </p>
+        break;
+
+    case Vista.Anno:
+        <AnnoCalendario Anno="riferimento.Year" Conteggi="conteggi"
+                        OnApriGiorno="g => CambiaVista(Vista.Settimana, g)" OnApriMese="m => CambiaVista(Vista.Mese, m)" />
+        break;
 }
 
 @* ---- Nuova / modifica lezione (gestione) ---- *@
@@ -189,8 +214,16 @@
 
     private bool gestione => Sessione.PuoGestire;
 
-    private DateOnly lunedi = LunediDi(DateOnly.FromDateTime(DateTime.Today));
+    private enum Vista { Settimana, Mese, Anno }
+
+    private Vista vista = Vista.Settimana;
+    /// <summary>Un giorno qualsiasi del periodo mostrato (settimana, mese o anno).</summary>
+    private DateOnly riferimento = DateOnly.FromDateTime(DateTime.Today);
     private List<LezioneDto> lezioni = [];
+    private Dictionary<DateOnly, int> conteggi = [];
+
+    private DateOnly Lunedi => LunediDi(riferimento);
+    private DateOnly PrimoDelMese => new(riferimento.Year, riferimento.Month, 1);
     private List<SedeDto> sedi = [];
 
     private List<DipendenteDto> docenti = [];
@@ -209,17 +242,22 @@
 
     private static DateOnly LunediDi(DateOnly d) => d.AddDays(-(((int)d.DayOfWeek + 6) % 7));
 
-    /// <summary>"mercoledì 14 ottobre" → "Mercoledì 14 ottobre" (solo la prima lettera, il mese resta minuscolo).</summary>
-    private static string Maiuscola(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
+    private static string Maiuscola(string s) => Testo.Maiuscola(s);
 
-    private string TitoloSettimana
+    private string TitoloPeriodo
     {
         get
         {
-            var domenica = lunedi.AddDays(6);
-            return lunedi.Month == domenica.Month
-                ? $"{lunedi.Day} – {domenica:d MMMM yyyy}"
-                : $"{lunedi:d MMM} – {domenica:d MMM yyyy}";
+            switch (vista)
+            {
+                case Vista.Mese: return Maiuscola(PrimoDelMese.ToString("MMMM yyyy"));
+                case Vista.Anno: return riferimento.Year.ToString();
+                default:
+                    var domenica = Lunedi.AddDays(6);
+                    return Lunedi.Month == domenica.Month
+                        ? $"{Lunedi.Day} – {domenica:d MMMM yyyy}"
+                        : $"{Lunedi:d MMM} – {domenica:d MMM yyyy}";
+            }
         }
     }
 
@@ -250,17 +288,48 @@
         await Carica();
     }
 
-    private Task Carica() => Esegui(async () => lezioni = await Api.Lezioni(lunedi, lunedi.AddDays(6), filtroSede, filtroDocente));
-
-    private Task Sposta(int giorni)
+    /// <summary>Settimana e mese caricano le lezioni; l'anno solo il numero di lezioni per giorno.</summary>
+    private Task Carica() => Esegui(async () =>
     {
-        lunedi = lunedi.AddDays(giorni);
+        switch (vista)
+        {
+            case Vista.Anno:
+                var anno = riferimento.Year;
+                conteggi = (await Api.ConteggiLezioni(new DateOnly(anno, 1, 1), new DateOnly(anno, 12, 31), filtroSede, filtroDocente))
+                    .ToDictionary(c => c.Giorno, c => c.Lezioni);
+                break;
+            case Vista.Mese:
+                var (da, a) = MeseCalendario.Intervallo(PrimoDelMese);
+                lezioni = await Api.Lezioni(da, a, filtroSede, filtroDocente);
+                break;
+            default:
+                lezioni = await Api.Lezioni(Lunedi, Lunedi.AddDays(6), filtroSede, filtroDocente);
+                break;
+        }
+    });
+
+    /// <summary>Avanti/indietro di una settimana, un mese o un anno a seconda della vista.</summary>
+    private Task Sposta(int verso)
+    {
+        riferimento = vista switch
+        {
+            Vista.Mese => PrimoDelMese.AddMonths(verso),
+            Vista.Anno => riferimento.AddYears(verso),
+            _ => riferimento.AddDays(7 * verso),
+        };
         return Carica();
     }
 
     private Task Oggi()
     {
-        lunedi = LunediDi(DateOnly.FromDateTime(DateTime.Today));
+        riferimento = DateOnly.FromDateTime(DateTime.Today);
+        return Carica();
+    }
+
+    private Task CambiaVista(Vista nuova, DateOnly giorno)
+    {
+        vista = nuova;
+        riferimento = giorno;
         return Carica();
     }
 
@@ -364,7 +433,7 @@
                 var create = await Api.CreaLezione(modulo);
                 messaggio = create.Count == 1 ? "Lezione creata." : $"Create {create.Count} lezioni (una a settimana).";
                 // Porto il calendario sulla settimana della lezione appena creata.
-                lunedi = LunediDi(giorno);
+                riferimento = giorno;
             }
         });
         if (!ok) return;

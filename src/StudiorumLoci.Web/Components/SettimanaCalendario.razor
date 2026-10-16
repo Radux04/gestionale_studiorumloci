@@ -28,7 +28,7 @@
                     @foreach (var l in delGiorno)
                     {
                         var (corsia, totale) = corsie[l.Id];
-                        <div class="cal-lezione @Colore(l.SedeId)"
+                        <div class="cal-lezione @Testo.ColoreSede(l.SedeId)"
                              style="top: @Px(Minuti(l.Inizio))px; height: @Px(Math.Max(24, l.Durata.TotalMinutes * AltezzaOra / 60))px; left: calc(@(Perc(corsia, totale))% + 2px); width: calc(@(Perc(1, totale))% - 4px)"
                              title="@l.Titolo · @l.Inizio.ToString("HH:mm")–@l.Fine.ToString("HH:mm") · @l.Sede"
                              @onclick="() => OnLezione.InvokeAsync(l)" @onclick:stopPropagation="true">
@@ -59,7 +59,6 @@
 
     private const int AltezzaOra = 64;
     private readonly DateOnly oggi = DateOnly.FromDateTime(DateTime.Today);
-    private static readonly string[] Colori = ["c0", "c1", "c2", "c3", "c4", "c5"];
 
     private IEnumerable<DateOnly> Giorni => Enumerable.Range(0, 7).Select(Lunedi.AddDays);
 
@@ -71,8 +70,6 @@
     private static string Px(double v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
     private static string Perc(int parte, int totale) => (100.0 * parte / totale).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
 
-    /// <summary>Colore stabile per sede, uguale per tutti gli utenti.</summary>
-    private static string Colore(int sedeId) => Colori[sedeId % Colori.Length];
 
     private Task ClicColonna(DateOnly giorno, MouseEventArgs e)
     {

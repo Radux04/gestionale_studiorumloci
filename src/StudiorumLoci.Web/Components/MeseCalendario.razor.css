@@ -1,0 +1,120 @@
+.mese {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    overflow: hidden;
+}
+
+.mese-intestazione,
+.mese-griglia {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.mese-intestazione {
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: .8rem;
+    color: var(--bs-secondary-color);
+}
+
+.mese-intestazione > div {
+    padding: .35rem .5rem;
+}
+
+.mese-giorno {
+    min-height: 7.5rem;
+    padding: .25rem;
+    border-right: 1px solid var(--bs-border-color);
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mese-giorno:nth-child(7n) {
+    border-right: none;
+}
+
+.mese-giorno.fuori {
+    background: var(--bs-tertiary-bg);
+}
+
+.mese-giorno.fuori .mese-numero {
+    color: var(--bs-tertiary-color);
+}
+
+.mese-giorno.oggi {
+    background: rgba(var(--bs-primary-rgb), .05);
+}
+
+.mese-giorno.cliccabile {
+    cursor: copy;
+}
+
+.mese-numero {
+    align-self: flex-start;
+    border: none;
+    background: none;
+    padding: 0 .35rem;
+    border-radius: 999px;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+}
+
+.mese-numero:hover {
+    background: var(--bs-secondary-bg);
+}
+
+.mese-giorno.oggi .mese-numero {
+    background: var(--bs-primary);
+    color: #fff;
+}
+
+.mese-lezione {
+    border-left: 3px solid;
+    border-radius: .25rem;
+    padding: 0 .3rem;
+    font-size: .75rem;
+    line-height: 1.45;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.mese-lezione:hover {
+    filter: brightness(.95);
+}
+
+.mese-ora {
+    font-weight: 600;
+}
+
+.mese-altre {
+    align-self: flex-start;
+    border: none;
+    background: none;
+    padding: 0 .3rem;
+    font-size: .75rem;
+    color: var(--bs-link-color);
+}
+
+.mese-altre:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+    .mese-giorno {
+        min-height: 4.5rem;
+    }
+
+    .mese-lezione {
+        font-size: .65rem;
+    }
+
+    .mese-ora {
+        display: none;
+    }
+}

@@ -121,10 +121,3 @@
     opacity: .85;
 }
 
-/* Un colore per sede. */
-.c0 { background: #e7f0ff; border-color: #2f6fde; color: #133a7c; }
-.c1 { background: #e6f6ee; border-color: #1f9254; color: #0f4d2b; }
-.c2 { background: #fff3e0; border-color: #e07b00; color: #7a4300; }
-.c3 { background: #f3e8fd; border-color: #8a3fd1; color: #4a1d75; }
-.c4 { background: #fde8ec; border-color: #d63358; color: #761a30; }
-.c5 { background: #e3f6f7; border-color: #138a92; color: #0b4b50; }

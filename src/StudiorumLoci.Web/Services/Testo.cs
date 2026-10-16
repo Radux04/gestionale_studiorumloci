@@ -21,6 +21,12 @@ public static partial class Testo
     public static string DataOra(DateTime d) =>
         (d.Kind == DateTimeKind.Utc ? d.ToLocalTime() : d).ToString("dd/MM/yyyy HH:mm");
 
+    /// <summary>Classe CSS del colore di una sede nel calendario (c0…c5, definite in app.css).</summary>
+    public static string ColoreSede(int sedeId) => $"c{sedeId % 6}";
+
+    /// <summary>"mercoledì 14 ottobre" → "Mercoledì 14 ottobre": solo la prima lettera maiuscola.</summary>
+    public static string Maiuscola(string s) => s.Length == 0 ? s : char.ToUpper(s[0]) + s[1..];
+
     public static string Euro(decimal importo) => importo.ToString("C");
 
     public static string Dimensione(long byte_) => byte_ switch

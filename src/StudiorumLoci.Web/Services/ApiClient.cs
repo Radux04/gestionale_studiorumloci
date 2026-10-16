@@ -31,6 +31,8 @@ public class ApiClient(HttpClient http)
     // ---- Calendario ----
     public Task<List<LezioneDto>> Lezioni(DateOnly da, DateOnly a, int? sedeId = null, int? dipendenteId = null) =>
         Get<List<LezioneDto>>($"api/lezioni?{Periodo(da, a)}&sedeId={sedeId}&dipendenteId={dipendenteId}");
+    public Task<List<ConteggioGiornoDto>> ConteggiLezioni(DateOnly da, DateOnly a, int? sedeId = null, int? dipendenteId = null) =>
+        Get<List<ConteggioGiornoDto>>($"api/lezioni/conteggi?{Periodo(da, a)}&sedeId={sedeId}&dipendenteId={dipendenteId}");
     public Task<List<LezioneDto>> CreaLezione(LezioneInput l) => Send<List<LezioneDto>>(HttpMethod.Post, "api/lezioni", l);
     public Task<LezioneDto> ModificaLezione(int id, LezioneInput l, bool successive) =>
         Send<LezioneDto>(HttpMethod.Put, $"api/lezioni/{id}?successive={successive}", l);

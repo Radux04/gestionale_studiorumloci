@@ -1,0 +1,64 @@
+@* Vista annuale: 12 mini-mesi, ogni giorno colorato in base a quante lezioni ha. *@
+
+<div class="row g-3">
+    @for (var m = 1; m <= 12; m++)
+    {
+        var primo = new DateOnly(Anno, m, 1);
+        var (da, a) = MeseCalendario.Intervallo(primo);
+        var totaleMese = Conteggi.Where(c => c.Key.Year == Anno && c.Key.Month == m).Sum(c => c.Value);
+        <div class="col-sm-6 col-lg-4 col-xxl-3">
+            <div class="anno-mese">
+                <button type="button" class="anno-titolo" title="Apri il mese" @onclick="() => OnApriMese.InvokeAsync(primo)">
+                    <span>@Testo.Maiuscola(primo.ToString("MMMM"))</span>
+                    <span class="text-body-secondary small fw-normal">@(totaleMese == 1 ? "1 lezione" : $"{totaleMese} lezioni")</span>
+                </button>
+                <div class="anno-griglia">
+                    @foreach (var nome in Iniziali) { <div class="anno-intestazione">@nome</div> }
+                    @for (var d = da; d <= a; d = d.AddDays(1))
+                    {
+                        var giorno = d;
+                        if (giorno.Month != m)
+                        {
+                            <div></div>
+                            continue;
+                        }
+                        var numero = Conteggi.GetValueOrDefault(giorno);
+                        <button type="button" class="anno-giorno @Intensita(numero) @(giorno == oggi ? "oggi" : "")"
+                                title="@giorno.ToString("ddd d MMMM"): @(numero == 1 ? "1 lezione" : $"{numero} lezioni")"
+                                @onclick="() => OnApriGiorno.InvokeAsync(giorno)">
+                            @giorno.Day
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="d-flex align-items-center gap-2 small text-body-secondary mt-3">
+    <span>Lezioni al giorno:</span>
+    <span class="anno-giorno-legenda"></span> 0
+    <span class="anno-giorno-legenda l1"></span> 1–2
+    <span class="anno-giorno-legenda l2"></span> 3–5
+    <span class="anno-giorno-legenda l3"></span> 6–10
+    <span class="anno-giorno-legenda l4"></span> più di 10
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int Anno { get; set; }
+    [Parameter, EditorRequired] public Dictionary<DateOnly, int> Conteggi { get; set; } = [];
+    [Parameter] public EventCallback<DateOnly> OnApriGiorno { get; set; }
+    [Parameter] public EventCallback<DateOnly> OnApriMese { get; set; }
+
+    private static readonly string[] Iniziali = ["L", "M", "M", "G", "V", "S", "D"];
+    private readonly DateOnly oggi = DateOnly.FromDateTime(DateTime.Today);
+
+    private static string Intensita(int numero) => numero switch
+    {
+        0 => "",
+        <= 2 => "l1",
+        <= 5 => "l2",
+        <= 10 => "l3",
+        _ => "l4",
+    };
+}

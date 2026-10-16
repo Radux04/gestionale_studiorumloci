@@ -33,3 +33,6 @@ public class LezioneInput
 }
 
 public record PresenzaInput(int StudenteId, bool? Presente);
+
+/// <summary>Quante lezioni ci sono in un giorno (vista annuale).</summary>
+public record ConteggioGiornoDto(DateOnly Giorno, int Lezioni);

@@ -19,7 +19,7 @@ Il sito pubblico [studiorum-loci.vercel.app](https://studiorum-loci.vercel.app) 
 | Richieste (lead): filtro per stato, storico contatti, conversione in genitore | `/crm/lead` |
 | Studenti: ricerca, filtro per sede, anagrafica, collegamento ai genitori | `/crm/studenti` |
 | Genitori: anagrafica e storico contatti | `/crm/genitori` |
-| Calendario: settimana con le lezioni per sede/professore, serie settimanali, presenze | `/calendario` |
+| Calendario: viste settimana, mese e anno; lezioni per sede/professore, serie settimanali, presenze | `/calendario` |
 | Sedi: elenco per regione, anagrafica, numero di studenti | `/sedi` |
 | Dipendenti: elenco filtrabile per ruolo e sede, anagrafica con le sedi di lavoro | `/dipendenti` |
 | Scheda dipendente: turni del mese e compenso maturato | `/dipendenti/{id}` |
@@ -46,7 +46,7 @@ src/StudiorumLoci.Api/
 
 | Modulo | Endpoint | Note |
 |---|---|---|
-| Calendario | `api/lezioni` | elenco per periodo (`da`, `a`, `sedeId`, `dipendenteId`), CRUD con serie settimanali (`ripetiFinoAl`, `?successive=true`), `/{id}/presenze` |
+| Calendario | `api/lezioni` | elenco per periodo (`da`, `a`, `sedeId`, `dipendenteId`), CRUD con serie settimanali (`ripetiFinoAl`, `?successive=true`), `/{id}/presenze`, `/conteggi` (lezioni per giorno, per la vista annuale) |
 | Sedi | `api/sedi` | CRUD, filtri `regione` e `soloAttive`; la DELETE è rifiutata se la sede ha studenti |
 | CRM – Studenti | `api/crm/studenti` | CRUD (sede obbligatoria), filtro `sedeId` (0 = senza sede), `/{id}/disattiva`; la DELETE è rifiutata se lo studente ha pagamenti |
 | CRM – Genitori | `api/crm/genitori` | CRUD (la DELETE elimina anche lo storico contatti) + `/{id}/interazioni` |

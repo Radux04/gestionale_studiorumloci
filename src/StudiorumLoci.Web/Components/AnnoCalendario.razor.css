@@ -1,0 +1,67 @@
+.anno-mese {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    padding: .5rem .6rem .6rem;
+    height: 100%;
+}
+
+.anno-titolo {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 0 0 .35rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+}
+
+.anno-titolo:hover span:first-child {
+    text-decoration: underline;
+}
+
+.anno-griglia {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.anno-intestazione {
+    text-align: center;
+    font-size: .7rem;
+    color: var(--bs-secondary-color);
+}
+
+.anno-giorno {
+    aspect-ratio: 1;
+    border: none;
+    border-radius: .3rem;
+    background: var(--bs-tertiary-bg);
+    font-size: .72rem;
+    color: var(--bs-body-color);
+    padding: 0;
+}
+
+.anno-giorno:hover {
+    outline: 2px solid var(--bs-primary);
+}
+
+.anno-giorno.oggi {
+    outline: 2px solid var(--bs-primary);
+    font-weight: 700;
+}
+
+.anno-giorno-legenda {
+    display: inline-block;
+    width: .9rem;
+    height: .9rem;
+    border-radius: .2rem;
+    background: var(--bs-tertiary-bg);
+}
+
+/* Intensità: più lezioni, colore più pieno. */
+.l1 { background: #d6e6ff; }
+.l2 { background: #9fc1fb; }
+.l3 { background: #4f8ef0; color: #fff; }
+.l4 { background: #1f5fc4; color: #fff; }
